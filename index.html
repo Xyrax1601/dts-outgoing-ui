@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTS Outgoing - Document Tracking System</title>
+  <meta name="description" content="Record and track forwarded and received documents with ease and generate printable forwarding reports.">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+  <!-- Fullscreen Login & Registration Overlay -->
+  <div id="login-screen" class="login-screen-overlay">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-brand-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </div>
+        <h2 id="login-title" class="login-title">DTS Outgoing Login</h2>
+        <p id="login-subtitle" class="login-subtitle">Sign in to record, track, and generate document reports</p>
+      </div>
+
+      <div id="login-error-alert" class="login-alert" style="display:none;"></div>
+
+      <form id="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="auth-username">Username</label>
+          <input type="text" id="auth-username" class="form-input" placeholder="Enter username..." required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="auth-password">Password</label>
+          <div class="input-with-action">
+            <input type="password" id="auth-password" class="form-input" placeholder="Enter password..." required autocomplete="current-password">
+            <button type="button" id="btn-toggle-password" class="btn-inline-action">Show</button>
+          </div>
+        </div>
+
+        <button type="submit" id="auth-submit-btn" class="btn-primary btn-full">
+          Sign In
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <button type="button" id="auth-toggle-btn" class="login-link-btn">Register New Account</button>
+      </div>
+
+      <div class="demo-credentials-box">
+        <span class="demo-label">Quick Demo Access</span>
+        <button type="button" id="btn-fill-demo" class="demo-chip">Use Demo Account (admin / admin123)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <h1 class="brand-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          DTS Outgoing
+        </h1>
+        <span class="brand-subtitle">Record & track documents</span>
+      </div>
+
+      <!-- MongoDB & Server Connection Status Pill -->
+      <div id="mongo-status-pill" class="mongo-status-pill mongo-offline" title="Database Connection Status">
+        <span id="mongo-status-dot" class="status-dot"></span>
+        <span id="mongo-status-text">Local Storage Mode</span>
+      </div>
+
+      <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">
+        <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <span id="theme-btn-text">Light Mode</span>
+      </button>
+
+      <nav class="nav-group">
+        <button class="nav-btn" data-view="forward-view" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          Forward Document
+        </button>
+
+        <button class="nav-btn" data-view="receive-view" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          Receive Document
+        </button>
+
+        <button class="nav-btn active" data-view="track-view" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          Track Document
+        </button>
+      </nav>
+
+      <!-- Logged-in User Profile Card -->
+      <div class="user-profile-card">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-details">
+          <span class="user-name" id="user-display-name">Username</span>
+          <span class="user-role">Authorized Session</span>
+        </div>
+        <button type="button" id="btn-logout" class="btn-logout" title="Sign Out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Views -->
+    <main class="main-content">
+      
+      <!-- View 1: Forward Document Form -->
+      <section id="forward-view" class="view-section">
+        <header class="section-header">
+          <h2 class="section-title">Forward Document</h2>
+        </header>
+
+        <div class="form-card">
+          <form id="forward-document-form">
+            <div class="form-group">
+              <label class="form-label" for="forward-dts-no">
+                <span>DTS Tracking No.</span>
+              </label>
+              <div class="input-with-action">
+                <input type="text" id="forward-dts-no" class="form-input" placeholder="e.g. 003420260622QSXD or leave empty for NONE">
+                <button type="button" id="btn-generate-dts" class="btn-inline-action">Generate No.</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="forward-from-office">From/Office</label>
+              <input type="text" id="forward-from-office" class="form-input" placeholder="e.g. extension, NMFIC, Research Office" list="office-list" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="forward-details">Document Details</label>
+              <textarea id="forward-details" class="form-textarea" placeholder="Enter complete document subject, purpose, or breakdown..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="forward-received-by">Received By (Optional)</label>
+              <input type="text" id="forward-received-by" class="form-input" placeholder="Name of person receiving document">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="forward-to-office">To/Office</label>
+              <input type="text" id="forward-to-office" class="form-input" placeholder="e.g. accounting/finance, chancellor" list="office-list" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="forward-date">Date Forwarded</label>
+              <input type="date" id="forward-date" class="form-input" required>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save Record
+              </button>
+              <button type="reset" class="btn-secondary">Reset</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- View 2: Receive Document Form -->
+      <section id="receive-view" class="view-section">
+        <header class="section-header">
+          <h2 class="section-title">Receive Document</h2>
+        </header>
+
+        <div class="form-card">
+          <form id="receive-document-form">
+            <div class="form-group">
+              <label class="form-label" for="receive-from-office">From/Office</label>
+              <input type="text" id="receive-from-office" class="form-input" placeholder="e.g. NMFIC, Research Office" list="office-list" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="receive-details">Document Details</label>
+              <textarea id="receive-details" class="form-textarea" placeholder="Enter document description..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="receive-received-by">Received By</label>
+              <input type="text" id="receive-received-by" class="form-input" placeholder="Your name or receiver name" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="receive-date">Date Received</label>
+              <input type="date" id="receive-date" class="form-input" required>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save Received
+              </button>
+              <button type="reset" class="btn-secondary">Reset</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- View 3: Track Document Table & Management -->
+      <section id="track-view" class="view-section active">
+        <header class="section-header">
+          <h2 class="section-title">Track Document</h2>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-card">
+            <span class="stat-label">Total Documents</span>
+            <span id="stat-total-count" class="stat-value">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Forwarded</span>
+            <span id="stat-forwarded-count" class="stat-value">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Received</span>
+            <span id="stat-received-count" class="stat-value">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Selected</span>
+            <span id="stat-selected-count" class="stat-value" style="color: var(--accent-blue);">0</span>
+          </div>
+        </div>
+
+        <!-- Controls Toolbar -->
+        <div class="toolbar-container">
+          <div class="toolbar-rows">
+            <div class="search-filter-group">
+              <div class="search-box">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="search-input" class="form-input" placeholder="Search all fields (DTS, From, Details...)">
+              </div>
+
+              <div class="date-picker-box">
+                <input type="date" id="date-filter-input" class="form-input" title="Filter by date">
+              </div>
+
+              <button type="button" id="clear-filter-btn" class="btn-secondary">Clear</button>
+            </div>
+
+            <div class="toolbar-actions">
+              <button type="button" id="toggle-view-mode-btn" class="btn-secondary">View Received Documents</button>
+              <button type="button" id="print-selected-btn" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                Print
+              </button>
+              <button type="button" id="export-btn" class="btn-secondary">Export</button>
+              <button type="button" id="open-import-modal-btn" class="btn-secondary" style="border-color: var(--accent-blue); color: var(--accent-blue);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Import CSV
+              </button>
+              <button type="button" id="delete-selected-btn" class="btn-danger" disabled>Delete Selected</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Table Container -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-checkbox">
+                  <input type="checkbox" id="select-all-checkbox">
+                </th>
+                <th>DTS Tracking No.</th>
+                <th>From/Office</th>
+                <th>Document Details</th>
+                <th>Received By</th>
+                <th>To/Office</th>
+                <th>Date</th>
+                <th style="text-align:right;">Actions (Kind)</th>
+              </tr>
+            </thead>
+            <tbody id="document-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+
+          <div id="table-empty-state" class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <p>No documents found matching your filter criteria.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Shared Datalist for Offices -->
+  <datalist id="office-list">
+    <option value="extension">
+    <option value="NMFIC">
+    <option value="Research Office">
+    <option value="CET">
+    <option value="VCRIE">
+    <option value="extension & Community Relations division">
+    <option value="accounting/finance">
+    <option value="chancellor">
+    <option value="extension office">
+  </datalist>
+
+  <!-- Edit Document Modal -->
+  <div id="edit-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Document Record</h3>
+        <button type="button" id="close-edit-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <form id="edit-document-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="edit-tracking-no">DTS Tracking No.</label>
+            <input type="text" id="edit-tracking-no" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-from-office">From/Office</label>
+            <input type="text" id="edit-from-office" class="form-input" list="office-list" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-details">Document Details</label>
+            <textarea id="edit-details" class="form-textarea" required></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-received-by">Received By</label>
+            <input type="text" id="edit-received-by" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-to-office">To/Office</label>
+            <input type="text" id="edit-to-office" class="form-input" list="office-list">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-date">Date</label>
+            <input type="date" id="edit-date" class="form-input" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="cancel-edit-btn" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Organised Import CSV Modal -->
+  <div id="import-csv-modal" class="modal-overlay">
+    <div class="modal-container import-modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" style="vertical-align: middle; margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Import Document Dataset (CSV)
+        </h3>
+        <button type="button" id="close-import-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Preset Asset CSV Card -->
+        <div class="import-preset-card">
+          <div class="preset-info">
+            <span class="preset-badge">Assets Preset File</span>
+            <h4 class="preset-name">documents_forward_2026-07-27.csv</h4>
+            <p class="preset-desc">Pre-packaged CSV file under assets folder containing 54 forwarded document records.</p>
+          </div>
+          <button type="button" id="load-preset-csv-btn" class="btn-primary">
+            ⚡ Import documents_forward_2026-07-27.csv
+          </button>
+        </div>
+
+        <div class="import-divider">
+          <span>OR Choose Custom File</span>
+        </div>
+
+        <!-- Custom CSV Upload Area -->
+        <div id="drop-zone" class="drop-zone">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <p class="drop-zone-text">Drag & drop your CSV file here or <span class="browse-link">browse computer</span></p>
+          <input type="file" id="modal-csv-file-input" accept=".csv" style="display:none;">
+        </div>
+
+        <!-- Import Options (Append vs Replace) -->
+        <div class="import-options">
+          <label class="radio-label">
+            <input type="radio" name="import-mode" value="replace" checked>
+            <span>Replace current dataset with imported records</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="import-mode" value="append">
+            <span>Append imported records to existing dataset</span>
+          </label>
+        </div>
+
+        <!-- Live CSV Preview Area -->
+        <div id="import-preview-container" class="import-preview-container" style="display: none;">
+          <h4 id="import-preview-title" class="preview-title">Import Preview (0 records found)</h4>
+          <div class="preview-table-wrapper">
+            <table class="data-table preview-table">
+              <thead>
+                <tr>
+                  <th>DTS Tracking No.</th>
+                  <th>From/Office</th>
+                  <th>Document Details</th>
+                  <th>To/Office</th>
+                  <th>Date</th>
+                  <th>Kind</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody">
+                <!-- Preview Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="cancel-import-btn" class="btn-secondary">Cancel</button>
+        <button type="button" id="confirm-import-btn" class="btn-primary" disabled>Confirm & Import CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Generation / Print Preview Modal -->
+  <div id="print-preview-modal" class="modal-overlay">
+    <div class="modal-container print-preview-modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Document Generation — Print Preview</h3>
+        <button type="button" id="close-print-preview" class="modal-close-btn">&times;</button>
+      </div>
+
+      <!-- Paper Saver Controller Bar -->
+      <div class="print-paper-saver-notice">
+        <div class="paper-saver-controls">
+          <span class="paper-saver-label">🌱 Paper Saver:</span>
+          <select id="print-limit-select" class="form-select paper-saver-select">
+            <option value="30" selected>⚡ Strict 2 Pages Max (Top 30 Items)</option>
+            <option value="15">🌱 Strict 1 Page Max (Top 15 Items)</option>
+            <option value="0">📄 Print All Selected Items</option>
+          </select>
+          <select id="print-orientation-select" class="form-select paper-saver-select">
+            <option value="portrait" selected>Portrait Layout</option>
+            <option value="landscape">Wide Landscape Layout</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="print-preview-content" class="print-preview-body">
+        <!-- Rendered print document table -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="trigger-print-btn" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Print Document
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
