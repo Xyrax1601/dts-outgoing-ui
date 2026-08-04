@@ -26,9 +26,12 @@ export function buildPrintableHtml(documents, title = 'Forwarded Documents — S
         <td class="col-from">${escapeHtml(doc.fromOffice || '')}</td>
         <td class="col-details">${formattedDetails}</td>
         <td class="col-received">
-          <div class="signature-box">
+          <div class="print-signatory-cell">
             ${doc.receivedBy ? `<div class="receiver-name">${escapeHtml(doc.receivedBy)}</div>` : ''}
-            <div class="signature-label">Receiver Signature / Date</div>
+            <div class="signature-line-area">
+              <div class="signature-line"></div>
+              <div class="signature-label">Receiver Signature / Date</div>
+            </div>
           </div>
         </td>
         <td class="col-to">${escapeHtml(doc.toOffice || '')}</td>

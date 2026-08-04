@@ -378,7 +378,7 @@ export class TrackerController {
     }
   }
 
-  handleConfirmImport() {
+  async handleConfirmImport() {
     if (!this.pendingImportDocs || this.pendingImportDocs.length === 0) return;
 
     const modeRadios = document.getElementsByName('import-mode');
@@ -387,37 +387,50 @@ export class TrackerController {
       if (r.checked) mode = r.value;
     }
 
-    if (mode === 'replace') {
-      store.saveDocuments(this.pendingImportDocs);
-      this.showToast(`Replaced current dataset with ${this.pendingImportDocs.length} imported records!`, 'success');
-    } else {
-      this.pendingImportDocs.forEach(d => store.addDocument(d));
-      this.showToast(`Appended ${this.pendingImportDocs.length} imported records!`, 'success');
+    try {
+      if (mode === 'replace') {
+        await store.saveDocuments(this.pendingImportDocs);
+        this.showToast(`Replaced current dataset with ${this.pendingImportDocs.length} imported records!`, 'success');
+      } else {
+        for (const d of this.pendingImportDocs) {
+          await store.addDocument(d);
+        }
+        this.showToast(`Appended ${this.pendingImportDocs.length} imported records!`, 'success');
+      }
+      this.closeImportModal();
+      this.render();
+    } catch (err) {
+      this.showToast(err.message || 'Import failed.', 'error');
     }
-
-    this.closeImportModal();
-    this.render();
   }
 
-  handleDeleteSingle(id) {
+  async handleDeleteSingle(id) {
     const doc = store.getDocumentById(id);
     if (!doc) return;
     if (confirm(`Are you sure you want to delete record "${doc.trackingNo !== 'NONE' ? doc.trackingNo : doc.fromOffice}"?`)) {
-      store.deleteDocument(id);
-      this.selectedIds.delete(id);
-      this.showToast('Document deleted successfully', 'success');
-      this.render();
+      try {
+        await store.deleteDocument(id);
+        this.selectedIds.delete(id);
+        this.showToast('Document deleted successfully', 'success');
+        this.render();
+      } catch (err) {
+        this.showToast(err.message || 'Failed to delete document.', 'error');
+      }
     }
   }
 
-  handleDeleteSelected() {
+  async handleDeleteSelected() {
     if (this.selectedIds.size === 0) return;
     const count = this.selectedIds.size;
     if (confirm(`Are you sure you want to delete ${count} selected document(s)?`)) {
-      store.deleteBatch(Array.from(this.selectedIds));
-      this.selectedIds.clear();
-      this.showToast(`${count} document(s) deleted successfully`, 'success');
-      this.render();
+      try {
+        await store.deleteBatch(Array.from(this.selectedIds));
+        this.selectedIds.clear();
+        this.showToast(`${count} document(s) deleted successfully`, 'success');
+        this.render();
+      } catch (err) {
+        this.showToast(err.message || 'Failed to delete selected documents.', 'error');
+      }
     }
   }
 
@@ -445,7 +458,7 @@ export class TrackerController {
     }
   }
 
-  handleEditSubmit(e) {
+  async handleEditSubmit(e) {
     e.preventDefault();
     if (!this.editingDocId) return;
 
@@ -458,10 +471,14 @@ export class TrackerController {
       date: document.getElementById('edit-date').value
     };
 
-    store.updateDocument(this.editingDocId, updated);
-    this.closeEditModal();
-    this.showToast('Document record updated successfully!', 'success');
-    this.render();
+    try {
+      await store.updateDocument(this.editingDocId, updated);
+      this.closeEditModal();
+      this.showToast('Document record updated successfully!', 'success');
+      this.render();
+    } catch (err) {
+      this.showToast(err.message || 'Failed to update document record.', 'error');
+    }
   }
 
   openPrintPreview() {

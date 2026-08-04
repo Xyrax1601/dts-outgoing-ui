@@ -283,12 +283,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       type: 'forward'
     };
 
-    await store.addDocument(record);
-    showToast('Forwarded document record saved successfully!', 'success');
-    forwardForm.reset();
-    if (forwardDateInput) forwardDateInput.value = todayStr;
-
-    switchView('track-view');
+    try {
+      await store.addDocument(record);
+      showToast('Forwarded document record saved successfully to MongoDB!', 'success');
+      forwardForm.reset();
+      if (forwardDateInput) forwardDateInput.value = todayStr;
+      switchView('track-view');
+    } catch (err) {
+      showToast(err.message || 'Failed to save document record.', 'error');
+    }
   });
 
   // Receive Form Submission
@@ -306,12 +309,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       type: 'receive'
     };
 
-    await store.addDocument(record);
-    showToast('Received document record saved successfully!', 'success');
-    receiveForm.reset();
-    if (receiveDateInput) receiveDateInput.value = todayStr;
-
-    switchView('track-view');
+    try {
+      await store.addDocument(record);
+      showToast('Received document record saved successfully to MongoDB!', 'success');
+      receiveForm.reset();
+      if (receiveDateInput) receiveDateInput.value = todayStr;
+      switchView('track-view');
+    } catch (err) {
+      showToast(err.message || 'Failed to save document record.', 'error');
+    }
   });
 });
 

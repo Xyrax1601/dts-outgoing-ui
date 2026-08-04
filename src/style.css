@@ -408,7 +408,8 @@ body {
   display: flex;
   flex-direction: column;
   padding: 32px;
-  overflow-y: auto;
+  height: 100vh;
+  overflow: hidden;
   max-width: calc(100vw - 260px);
 }
 
@@ -421,6 +422,26 @@ body {
 
 .view-section.active {
   display: flex;
+}
+
+#forward-view.active, #receive-view.active {
+  overflow-y: auto;
+  height: 100%;
+  padding-right: 4px;
+}
+
+#track-view.active {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#track-view .section-header,
+#track-view .stats-bar,
+#track-view .toolbar-container {
+  flex-shrink: 0;
 }
 
 @keyframes fadeIn {
@@ -721,18 +742,25 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   box-shadow: var(--shadow-md);
+  position: relative;
 }
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
   font-size: 0.88rem;
 }
 
 .data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   font-weight: 700;
@@ -740,6 +768,7 @@ body {
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
   letter-spacing: 0.02em;
+  box-shadow: 0 1px 0 var(--border-color);
 }
 
 .data-table td {
@@ -1226,33 +1255,43 @@ body {
 .print-table .col-dts { width: 16%; font-family: monospace; font-size: 9.5px; font-weight: 600; }
 .print-table .col-from { width: 14%; }
 .print-table .col-details { width: 33%; }
-.print-table .col-received { width: 18%; }
-.print-table .col-to { width: 11%; }
-.print-table .col-date { width: 8%; text-align: center; white-space: nowrap; }
+/* Open Signatory Area in Print Document (No Inner Textbox Box Border) */
+.print-table .col-received {
+  width: 18%;
+  vertical-align: bottom;
+  padding: 4px 6px;
+}
 
-/* Signature Box in Print Document (Paper Saving Ultra Compact Height) */
-.signature-box {
-  border: 1px solid #555555;
-  border-radius: 3px;
-  min-height: 28px;
-  padding: 2px 4px;
+.print-signatory-cell {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: #ffffff;
+  min-height: 42px;
+  height: 100%;
 }
 
 .receiver-name {
   font-weight: bold;
   font-size: 9.5px;
   line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.signature-line-area {
+  margin-top: auto;
+  padding-top: 6px;
+  text-align: center;
+}
+
+.signature-line {
+  border-bottom: 1px solid #777777;
+  margin-bottom: 2px;
+  width: 100%;
 }
 
 .signature-label {
   font-size: 7.5px;
   color: #555555;
-  margin-top: auto;
-  padding-top: 2px;
 }
 
 /* Wide Landscape Layout Adjustments */

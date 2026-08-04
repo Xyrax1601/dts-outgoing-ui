@@ -589,15 +589,14 @@ class DTSStore {
       createdBy: this.currentUser ? this.currentUser.username : 'system'
     };
 
-    if (this.isServerOnline) {
-      try {
-        const created = await api.createDocument(payload);
-        // Re-sync full list from server so all clients stay in sync
-        await this.syncDocuments();
-        return created;
-      } catch (e) {
-        console.warn('API add failed, saving locally:', e);
-      }
+    if (this.isServerOnline && this.isMongoConnected) {
+      const created = await api.createDocument(payload);
+      await this.syncDocuments();
+      return created;
+    }
+
+    if (this.isServerOnline && !this.isMongoConnected) {
+      throw new Error('MongoDB Cloud is currently offline. An active MongoDB database connection is required to save records.');
     }
 
     const localDoc = {
@@ -611,14 +610,14 @@ class DTSStore {
   }
 
   async updateDocument(id, updatedFields) {
-    if (this.isServerOnline) {
-      try {
-        const updated = await api.updateDocument(id, updatedFields);
-        await this.syncDocuments();
-        return updated;
-      } catch (e) {
-        console.warn('API update failed, updating locally:', e);
-      }
+    if (this.isServerOnline && this.isMongoConnected) {
+      const updated = await api.updateDocument(id, updatedFields);
+      await this.syncDocuments();
+      return updated;
+    }
+
+    if (this.isServerOnline && !this.isMongoConnected) {
+      throw new Error('MongoDB Cloud is offline. Cannot update records without MongoDB.');
     }
 
     const index = this.documents.findIndex(d => d.id === id);
@@ -635,46 +634,49 @@ class DTSStore {
   }
 
   async deleteDocument(id) {
-    if (this.isServerOnline) {
-      try {
-        await api.deleteDocument(id);
-        await this.syncDocuments();
-        return;
-      } catch (e) {
-        console.warn('API delete failed, deleting locally:', e);
-      }
+    if (this.isServerOnline && this.isMongoConnected) {
+      await api.deleteDocument(id);
+      await this.syncDocuments();
+      return;
     }
+
+    if (this.isServerOnline && !this.isMongoConnected) {
+      throw new Error('MongoDB Cloud is offline. Cannot delete records without MongoDB.');
+    }
+
     this.documents = this.documents.filter(d => d.id !== id);
     this.saveLocalDocs(this.documents);
   }
 
   async deleteBatch(ids) {
-    if (this.isServerOnline) {
-      try {
-        await api.deleteBatch(ids);
-        await this.syncDocuments();
-        return;
-      } catch (e) {
-        console.warn('API batch delete failed, deleting locally:', e);
-      }
+    if (this.isServerOnline && this.isMongoConnected) {
+      await api.deleteBatch(ids);
+      await this.syncDocuments();
+      return;
     }
+
+    if (this.isServerOnline && !this.isMongoConnected) {
+      throw new Error('MongoDB Cloud is offline. Cannot batch delete records without MongoDB.');
+    }
+
     const idSet = new Set(ids);
     this.documents = this.documents.filter(d => !idSet.has(d.id));
     this.saveLocalDocs(this.documents);
   }
 
   async saveDocuments(docs, replace = true) {
-    if (this.isServerOnline) {
-      try {
-        await api.batchImport(docs, replace);
-        const remoteDocs = await api.fetchDocuments();
-        this.documents = remoteDocs;
-        this.saveLocalDocs(remoteDocs);
-        return;
-      } catch (e) {
-        console.warn('API import failed, saving locally:', e);
-      }
+    if (this.isServerOnline && this.isMongoConnected) {
+      await api.batchImport(docs, replace);
+      const remoteDocs = await api.fetchDocuments();
+      this.documents = remoteDocs;
+      this.saveLocalDocs(remoteDocs);
+      return;
     }
+
+    if (this.isServerOnline && !this.isMongoConnected) {
+      throw new Error('MongoDB Cloud is offline. Cannot import documents without MongoDB connection.');
+    }
+
     this.saveLocalDocs(docs);
   }
 
