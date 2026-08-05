@@ -486,10 +486,22 @@ class DTSStore {
   }
 
   async checkBackendStatus() {
+    const wasMongoConnected = this.isMongoConnected;
     const health = await api.checkHealth();
     this.isServerOnline = health.online;
     this.isMongoConnected = health.mongoConnected;
-    return health;
+
+    // Realtime offline-to-online auto-sync trigger
+    let syncedCount = 0;
+    if (!wasMongoConnected && this.isMongoConnected && this.currentUser) {
+      syncedCount = await this.syncOfflineDocsToMongo();
+    }
+
+    return {
+      ...health,
+      statusChanged: wasMongoConnected !== this.isMongoConnected,
+      syncedCount
+    };
   }
 
   loadUser() {
@@ -523,13 +535,20 @@ class DTSStore {
       return [];
     }
 
-    if (this.isServerOnline) {
+    if (this.isServerOnline && this.isMongoConnected) {
       try {
         const remoteDocs = await api.fetchDocuments();
         if (Array.isArray(remoteDocs)) {
-          this.documents = remoteDocs;
-          this.saveLocalDocs(remoteDocs);
-          return remoteDocs;
+          // Check for any unsynced local offline docs to preserve
+          const localDocs = this.loadLocalDocs();
+          const unsynced = localDocs.filter(d => d.syncedToMongo === false);
+
+          const remoteMap = new Set(remoteDocs.map(r => r.id));
+          const pendingUnsynced = unsynced.filter(u => !remoteMap.has(u.id));
+
+          this.documents = [...pendingUnsynced, ...remoteDocs.map(r => ({ ...r, syncedToMongo: true }))];
+          this.saveLocalDocs(this.documents);
+          return this.documents;
         }
       } catch (e) {
         console.warn('API fetch failed, reading LocalStorage fallback:', e);
@@ -537,6 +556,29 @@ class DTSStore {
     }
     this.documents = this.loadLocalDocs();
     return this.documents;
+  }
+
+  async syncOfflineDocsToMongo() {
+    if (!this.currentUser || !this.isMongoConnected) return 0;
+
+    const localDocs = this.loadLocalDocs();
+    const unsynced = localDocs.filter(d => d.syncedToMongo === false || (d.id && (d.id.startsWith('dts-') || d.id.startsWith('mem-'))));
+
+    if (unsynced.length === 0) return 0;
+
+    try {
+      console.log(`Syncing ${unsynced.length} offline browser-stored records to MongoDB...`);
+      await api.batchImport(unsynced, false);
+      const remoteDocs = await api.fetchDocuments();
+      if (Array.isArray(remoteDocs)) {
+        this.documents = remoteDocs.map(r => ({ ...r, syncedToMongo: true }));
+        this.saveLocalDocs(this.documents);
+      }
+      return unsynced.length;
+    } catch (err) {
+      console.error('Failed to sync offline docs to MongoDB:', err);
+      return 0;
+    }
   }
 
   loadLocalDocs() {
@@ -590,18 +632,21 @@ class DTSStore {
     };
 
     if (this.isServerOnline && this.isMongoConnected) {
-      const created = await api.createDocument(payload);
-      await this.syncDocuments();
-      return created;
+      try {
+        const created = await api.createDocument(payload);
+        await this.syncDocuments();
+        return created;
+      } catch (e) {
+        console.warn('MongoDB add failed, saving locally:', e);
+      }
     }
 
-    if (this.isServerOnline && !this.isMongoConnected) {
-      throw new Error('MongoDB Cloud is currently offline. An active MongoDB database connection is required to save records.');
-    }
-
+    // Temporary Browser Storage Fallback when MongoDB is inactive
     const localDoc = {
       id: 'dts-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       ...payload,
+      syncedToMongo: false,
+      isOffline: true,
       createdAt: new Date().toISOString()
     };
     this.documents.unshift(localDoc);
@@ -611,20 +656,22 @@ class DTSStore {
 
   async updateDocument(id, updatedFields) {
     if (this.isServerOnline && this.isMongoConnected) {
-      const updated = await api.updateDocument(id, updatedFields);
-      await this.syncDocuments();
-      return updated;
+      try {
+        const updated = await api.updateDocument(id, updatedFields);
+        await this.syncDocuments();
+        return updated;
+      } catch (e) {
+        console.warn('MongoDB update failed, updating locally:', e);
+      }
     }
 
-    if (this.isServerOnline && !this.isMongoConnected) {
-      throw new Error('MongoDB Cloud is offline. Cannot update records without MongoDB.');
-    }
-
+    // Temporary Browser Storage Update
     const index = this.documents.findIndex(d => d.id === id);
     if (index !== -1) {
       this.documents[index] = {
         ...this.documents[index],
         ...updatedFields,
+        syncedToMongo: false,
         updatedAt: new Date().toISOString()
       };
       this.saveLocalDocs(this.documents);
@@ -635,30 +682,32 @@ class DTSStore {
 
   async deleteDocument(id) {
     if (this.isServerOnline && this.isMongoConnected) {
-      await api.deleteDocument(id);
-      await this.syncDocuments();
-      return;
+      try {
+        await api.deleteDocument(id);
+        await this.syncDocuments();
+        return;
+      } catch (e) {
+        console.warn('MongoDB delete failed, deleting locally:', e);
+      }
     }
 
-    if (this.isServerOnline && !this.isMongoConnected) {
-      throw new Error('MongoDB Cloud is offline. Cannot delete records without MongoDB.');
-    }
-
+    // Temporary Browser Storage Delete
     this.documents = this.documents.filter(d => d.id !== id);
     this.saveLocalDocs(this.documents);
   }
 
   async deleteBatch(ids) {
     if (this.isServerOnline && this.isMongoConnected) {
-      await api.deleteBatch(ids);
-      await this.syncDocuments();
-      return;
+      try {
+        await api.deleteBatch(ids);
+        await this.syncDocuments();
+        return;
+      } catch (e) {
+        console.warn('MongoDB batch delete failed, deleting locally:', e);
+      }
     }
 
-    if (this.isServerOnline && !this.isMongoConnected) {
-      throw new Error('MongoDB Cloud is offline. Cannot batch delete records without MongoDB.');
-    }
-
+    // Temporary Browser Storage Batch Delete
     const idSet = new Set(ids);
     this.documents = this.documents.filter(d => !idSet.has(d.id));
     this.saveLocalDocs(this.documents);
@@ -666,18 +715,29 @@ class DTSStore {
 
   async saveDocuments(docs, replace = true) {
     if (this.isServerOnline && this.isMongoConnected) {
-      await api.batchImport(docs, replace);
-      const remoteDocs = await api.fetchDocuments();
-      this.documents = remoteDocs;
-      this.saveLocalDocs(remoteDocs);
-      return;
+      try {
+        await api.batchImport(docs, replace);
+        const remoteDocs = await api.fetchDocuments();
+        this.documents = remoteDocs.map(r => ({ ...r, syncedToMongo: true }));
+        this.saveLocalDocs(this.documents);
+        return;
+      } catch (e) {
+        console.warn('MongoDB import failed, saving locally:', e);
+      }
     }
 
-    if (this.isServerOnline && !this.isMongoConnected) {
-      throw new Error('MongoDB Cloud is offline. Cannot import documents without MongoDB connection.');
-    }
+    const taggedDocs = docs.map(d => ({
+      ...d,
+      id: d.id || ('dts-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)),
+      syncedToMongo: false,
+      createdBy: this.currentUser ? this.currentUser.username : 'system'
+    }));
 
-    this.saveLocalDocs(docs);
+    if (replace) {
+      this.saveLocalDocs(taggedDocs);
+    } else {
+      this.saveLocalDocs([...taggedDocs, ...this.documents]);
+    }
   }
 
   async loadSampleAssetCSV() {

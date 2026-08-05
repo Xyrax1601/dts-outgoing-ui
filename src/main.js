@@ -176,16 +176,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       mongoStatusText.textContent = 'MongoDB Cloud Connected';
     } else if (store.isServerOnline) {
       mongoStatusPill.className = 'mongo-status-pill mongo-offline';
-      mongoStatusText.textContent = 'Express API Connected';
+      mongoStatusText.textContent = 'Express API Connected (Mongo Offline)';
     } else {
       mongoStatusPill.className = 'mongo-status-pill mongo-offline';
       mongoStatusText.textContent = 'Local Storage Fallback';
     }
   }
 
-  // Initialize Session
+  async function performRealtimeCheck() {
+    const res = await store.checkBackendStatus();
+    updateMongoStatusUI();
+
+    if (res.syncedCount && res.syncedCount > 0) {
+      showToast(`⚡ MongoDB Connected! Synced ${res.syncedCount} temporary offline record(s) to cloud database in real-time.`, 'success');
+      tracker.render();
+    } else if (res.statusChanged) {
+      if (store.isMongoConnected) {
+        showToast('🟢 Connected to MongoDB Cloud Database (Real-time)', 'success');
+      } else {
+        showToast('🟡 MongoDB disconnected. Switched to Temporary Local Browser Storage.', 'warning');
+      }
+      tracker.render();
+    }
+  }
+
+  // Initialize Session & Start Realtime Polling
   await store.initStore();
   updateMongoStatusUI();
+
+  // Background 3-second polling for Realtime Status Pill
+  setInterval(performRealtimeCheck, 3000);
+  window.addEventListener('online', performRealtimeCheck);
+  window.addEventListener('focus', performRealtimeCheck);
 
   if (store.currentUser) {
     await showAppScreen(store.currentUser);

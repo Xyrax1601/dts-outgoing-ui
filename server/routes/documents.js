@@ -37,12 +37,14 @@ router.get('/', async (req, res) => {
   try {
     const currentUsername = req.user.username;
 
-    if (!isMongoConnected()) {
-      return res.status(503).json({ error: 'MongoDB Cloud is disconnected. Please check database connection.' });
+    if (isMongoConnected()) {
+      const docs = await Document.find({ createdBy: currentUsername }).sort({ createdAt: -1 });
+      return res.json(docs.map(formatMongoDoc));
     }
 
-    const docs = await Document.find({ createdBy: currentUsername }).sort({ createdAt: -1 });
-    return res.json(docs.map(formatMongoDoc));
+    // Fallback: Return in-memory documents belonging to current user
+    const userDocs = memoryStore.filter(d => d.createdBy === currentUsername);
+    res.json(userDocs);
   } catch (err) {
     console.error('Fetch docs error:', err.message);
     res.status(500).json({ error: 'Failed to fetch documents' });
@@ -55,25 +57,39 @@ router.post('/', async (req, res) => {
     const { trackingNo, fromOffice, details, receivedBy, toOffice, date, type } = req.body;
     const currentUsername = req.user.username;
 
-    if (!isMongoConnected()) {
-      return res.status(503).json({ error: 'MongoDB Cloud is offline. Active MongoDB connection is required to save records.' });
+    if (isMongoConnected()) {
+      const doc = new Document({
+        trackingNo: trackingNo || 'NONE',
+        fromOffice: fromOffice || '',
+        details: details || '',
+        receivedBy: receivedBy || '',
+        toOffice: toOffice || '',
+        date: date || new Date().toISOString().split('T')[0],
+        kind: type === 'receive' ? 'receive' : 'forward',
+        createdBy: currentUsername
+      });
+      await doc.save();
+      return res.status(201).json(formatMongoDoc(doc));
     }
 
-    const doc = new Document({
+    // Fallback: Save to in-memory store with user ownership
+    const memDoc = {
+      id: 'mem-' + (memoryIdCounter++),
       trackingNo: trackingNo || 'NONE',
       fromOffice: fromOffice || '',
       details: details || '',
       receivedBy: receivedBy || '',
       toOffice: toOffice || '',
       date: date || new Date().toISOString().split('T')[0],
-      kind: type === 'receive' ? 'receive' : 'forward',
-      createdBy: currentUsername
-    });
-    await doc.save();
-    return res.status(201).json(formatMongoDoc(doc));
+      type: type === 'receive' ? 'receive' : 'forward',
+      createdBy: currentUsername,
+      createdAt: new Date().toISOString()
+    };
+    memoryStore.unshift(memDoc);
+    res.status(201).json(memDoc);
   } catch (err) {
     console.error('Create doc error:', err.message);
-    res.status(500).json({ error: 'Failed to create document in MongoDB' });
+    res.status(500).json({ error: 'Failed to create document' });
   }
 });
 
@@ -83,22 +99,33 @@ router.put('/:id', async (req, res) => {
     const { trackingNo, fromOffice, details, receivedBy, toOffice, date, type } = req.body;
     const currentUsername = req.user.username;
 
-    if (!isMongoConnected()) {
-      return res.status(503).json({ error: 'MongoDB Cloud is offline. Active MongoDB connection is required.' });
+    if (isMongoConnected()) {
+      const doc = await Document.findOne({ _id: req.params.id, createdBy: currentUsername });
+      if (!doc) return res.status(404).json({ error: 'Document not found or unauthorized' });
+
+      if (trackingNo !== undefined) doc.trackingNo = trackingNo;
+      if (fromOffice !== undefined) doc.fromOffice = fromOffice;
+      if (details !== undefined) doc.details = details;
+      if (receivedBy !== undefined) doc.receivedBy = receivedBy;
+      if (toOffice !== undefined) doc.toOffice = toOffice;
+      if (date !== undefined) doc.date = date;
+      if (type !== undefined) doc.kind = type === 'receive' ? 'receive' : 'forward';
+      await doc.save();
+      return res.json(formatMongoDoc(doc));
     }
 
-    const doc = await Document.findOne({ _id: req.params.id, createdBy: currentUsername });
-    if (!doc) return res.status(404).json({ error: 'Document not found or unauthorized' });
+    // Fallback: Update in-memory store with ownership check
+    const idx = memoryStore.findIndex(d => d.id === req.params.id && d.createdBy === currentUsername);
+    if (idx === -1) return res.status(404).json({ error: 'Document not found or unauthorized' });
 
-    if (trackingNo !== undefined) doc.trackingNo = trackingNo;
-    if (fromOffice !== undefined) doc.fromOffice = fromOffice;
-    if (details !== undefined) doc.details = details;
-    if (receivedBy !== undefined) doc.receivedBy = receivedBy;
-    if (toOffice !== undefined) doc.toOffice = toOffice;
-    if (date !== undefined) doc.date = date;
-    if (type !== undefined) doc.kind = type === 'receive' ? 'receive' : 'forward';
-    await doc.save();
-    return res.json(formatMongoDoc(doc));
+    if (trackingNo !== undefined) memoryStore[idx].trackingNo = trackingNo;
+    if (fromOffice !== undefined) memoryStore[idx].fromOffice = fromOffice;
+    if (details !== undefined) memoryStore[idx].details = details;
+    if (receivedBy !== undefined) memoryStore[idx].receivedBy = receivedBy;
+    if (toOffice !== undefined) memoryStore[idx].toOffice = toOffice;
+    if (date !== undefined) memoryStore[idx].date = date;
+    if (type !== undefined) memoryStore[idx].type = type === 'receive' ? 'receive' : 'forward';
+    res.json(memoryStore[idx]);
   } catch (err) {
     console.error('Update doc error:', err.message);
     res.status(500).json({ error: 'Failed to update document' });
@@ -110,13 +137,18 @@ router.delete('/:id', async (req, res) => {
   try {
     const currentUsername = req.user.username;
 
-    if (!isMongoConnected()) {
-      return res.status(503).json({ error: 'MongoDB Cloud is offline. Active MongoDB connection is required.' });
+    if (isMongoConnected()) {
+      const result = await Document.findOneAndDelete({ _id: req.params.id, createdBy: currentUsername });
+      if (!result) return res.status(404).json({ error: 'Document not found or unauthorized' });
+      return res.json({ message: 'Document deleted successfully' });
     }
 
-    const result = await Document.findOneAndDelete({ _id: req.params.id, createdBy: currentUsername });
-    if (!result) return res.status(404).json({ error: 'Document not found or unauthorized' });
-    return res.json({ message: 'Document deleted successfully' });
+    const initialLen = memoryStore.length;
+    memoryStore = memoryStore.filter(d => !(d.id === req.params.id && d.createdBy === currentUsername));
+    if (memoryStore.length === initialLen) {
+      return res.status(404).json({ error: 'Document not found or unauthorized' });
+    }
+    res.json({ message: 'Document deleted successfully' });
   } catch (err) {
     console.error('Delete doc error:', err.message);
     res.status(500).json({ error: 'Failed to delete document' });
@@ -133,12 +165,16 @@ router.post('/batch-delete', async (req, res) => {
       return res.status(400).json({ error: 'Ids array is required' });
     }
 
-    if (!isMongoConnected()) {
-      return res.status(503).json({ error: 'MongoDB Cloud is offline. Active MongoDB connection is required.' });
+    if (isMongoConnected()) {
+      const resDel = await Document.deleteMany({ _id: { $in: ids }, createdBy: currentUsername });
+      return res.json({ message: `${resDel.deletedCount} documents deleted successfully` });
     }
 
-    const resDel = await Document.deleteMany({ _id: { $in: ids }, createdBy: currentUsername });
-    return res.json({ message: `${resDel.deletedCount} documents deleted successfully` });
+    const idSet = new Set(ids);
+    const beforeCount = memoryStore.length;
+    memoryStore = memoryStore.filter(d => !(idSet.has(d.id) && d.createdBy === currentUsername));
+    const deletedCount = beforeCount - memoryStore.length;
+    res.json({ message: `${deletedCount} documents deleted successfully` });
   } catch (err) {
     console.error('Batch delete error:', err.message);
     res.status(500).json({ error: 'Failed to batch delete documents' });
@@ -155,29 +191,46 @@ router.post('/batch-import', async (req, res) => {
       return res.status(400).json({ error: 'Documents array is required' });
     }
 
-    if (!isMongoConnected()) {
-      return res.status(503).json({ error: 'MongoDB Cloud is offline. Active MongoDB connection is required.' });
+    if (isMongoConnected()) {
+      // If replace is true, replace ONLY documents belonging to this user
+      if (replace) {
+        await Document.deleteMany({ createdBy: currentUsername });
+      }
+      const docsToInsert = documents.map(d => ({
+        trackingNo: d.trackingNo || 'NONE',
+        fromOffice: d.fromOffice || '',
+        details: d.details || '',
+        receivedBy: d.receivedBy || '',
+        toOffice: d.toOffice || '',
+        date: d.date || new Date().toISOString().split('T')[0],
+        kind: d.type === 'receive' ? 'receive' : 'forward',
+        createdBy: currentUsername
+      }));
+      const inserted = await Document.insertMany(docsToInsert);
+      return res.status(201).json({ message: `Successfully imported ${inserted.length} documents to MongoDB`, count: inserted.length });
     }
 
-    // If replace is true, replace ONLY documents belonging to this user
+    // Fallback: import into in-memory store scoped to current user
     if (replace) {
-      await Document.deleteMany({ createdBy: currentUsername });
+      memoryStore = memoryStore.filter(d => d.createdBy !== currentUsername);
     }
-    const docsToInsert = documents.map(d => ({
+    const imported = documents.map(d => ({
+      id: 'mem-' + (memoryIdCounter++),
       trackingNo: d.trackingNo || 'NONE',
       fromOffice: d.fromOffice || '',
       details: d.details || '',
       receivedBy: d.receivedBy || '',
       toOffice: d.toOffice || '',
       date: d.date || new Date().toISOString().split('T')[0],
-      kind: d.type === 'receive' ? 'receive' : 'forward',
-      createdBy: currentUsername
+      type: d.type === 'receive' ? 'receive' : 'forward',
+      createdBy: currentUsername,
+      createdAt: new Date().toISOString()
     }));
-    const inserted = await Document.insertMany(docsToInsert);
-    return res.status(201).json({ message: `Successfully imported ${inserted.length} documents to MongoDB`, count: inserted.length });
+    memoryStore.push(...imported);
+    res.status(201).json({ message: `Successfully imported ${imported.length} documents`, count: imported.length });
   } catch (err) {
     console.error('Batch import error:', err.message);
-    res.status(500).json({ error: 'Failed to import documents to MongoDB' });
+    res.status(500).json({ error: 'Failed to import documents' });
   }
 });
 
