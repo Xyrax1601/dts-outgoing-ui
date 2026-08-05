@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { Document } from '../models/Document.js';
+import { Document, getUserDocumentModel } from '../models/Document.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -32,13 +32,53 @@ function formatMongoDoc(d) {
   };
 }
 
-// ─── GET User-Specific Documents ─────────────────────────────────────
+/**
+ * Migrates any legacy documents from the old shared 'documents' collection into the user's dedicated collection 'documents_<username>'
+ */
+async function migrateLegacyUserDocuments(username) {
+  if (!isMongoConnected() || !username) return;
+
+  try {
+    const UserModel = getUserDocumentModel(username);
+    const legacyDocs = await Document.find({
+      $or: [
+        { createdBy: username },
+        { createdBy: username.toLowerCase() }
+      ]
+    });
+
+    if (legacyDocs.length > 0) {
+      console.log(`Migrating ${legacyDocs.length} legacy document(s) for user '${username}' into dedicated collection...`);
+      const docsToMigrate = legacyDocs.map(d => ({
+        trackingNo: d.trackingNo,
+        fromOffice: d.fromOffice,
+        details: d.details,
+        receivedBy: d.receivedBy,
+        toOffice: d.toOffice,
+        date: d.date,
+        kind: d.kind,
+        createdBy: username,
+        createdAt: d.createdAt
+      }));
+
+      await UserModel.insertMany(docsToMigrate);
+      await Document.deleteMany({ _id: { $in: legacyDocs.map(d => d._id) } });
+      console.log(`Successfully migrated legacy documents for '${username}'!`);
+    }
+  } catch (err) {
+    console.error(`Legacy migration error for ${username}:`, err.message);
+  }
+}
+
+// ─── GET User-Specific Documents (From Dedicated User Collection) ────
 router.get('/', async (req, res) => {
   try {
     const currentUsername = req.user.username;
 
     if (isMongoConnected()) {
-      const docs = await Document.find({ createdBy: currentUsername }).sort({ createdAt: -1 });
+      await migrateLegacyUserDocuments(currentUsername);
+      const UserModel = getUserDocumentModel(currentUsername);
+      const docs = await UserModel.find().sort({ createdAt: -1 });
       return res.json(docs.map(formatMongoDoc));
     }
 
@@ -51,14 +91,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ─── POST Create Document (User Scoped) ──────────────────────────────
+// ─── POST Create Document (Saved in Dedicated User Collection) ───────
 router.post('/', async (req, res) => {
   try {
     const { trackingNo, fromOffice, details, receivedBy, toOffice, date, type } = req.body;
     const currentUsername = req.user.username;
 
     if (isMongoConnected()) {
-      const doc = new Document({
+      const UserModel = getUserDocumentModel(currentUsername);
+      const doc = new UserModel({
         trackingNo: trackingNo || 'NONE',
         fromOffice: fromOffice || '',
         details: details || '',
@@ -93,14 +134,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ─── PUT Update Document (User Scoped) ──────────────────────────────
+// ─── PUT Update Document (In Dedicated User Collection) ─────────────
 router.put('/:id', async (req, res) => {
   try {
     const { trackingNo, fromOffice, details, receivedBy, toOffice, date, type } = req.body;
     const currentUsername = req.user.username;
 
     if (isMongoConnected()) {
-      const doc = await Document.findOne({ _id: req.params.id, createdBy: currentUsername });
+      const UserModel = getUserDocumentModel(currentUsername);
+      const doc = await UserModel.findById(req.params.id);
       if (!doc) return res.status(404).json({ error: 'Document not found or unauthorized' });
 
       if (trackingNo !== undefined) doc.trackingNo = trackingNo;
@@ -110,6 +152,7 @@ router.put('/:id', async (req, res) => {
       if (toOffice !== undefined) doc.toOffice = toOffice;
       if (date !== undefined) doc.date = date;
       if (type !== undefined) doc.kind = type === 'receive' ? 'receive' : 'forward';
+      doc.createdBy = currentUsername;
       await doc.save();
       return res.json(formatMongoDoc(doc));
     }
@@ -132,13 +175,14 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// ─── DELETE Single Document (User Scoped) ────────────────────────────
+// ─── DELETE Single Document (In Dedicated User Collection) ───────────
 router.delete('/:id', async (req, res) => {
   try {
     const currentUsername = req.user.username;
 
     if (isMongoConnected()) {
-      const result = await Document.findOneAndDelete({ _id: req.params.id, createdBy: currentUsername });
+      const UserModel = getUserDocumentModel(currentUsername);
+      const result = await UserModel.findByIdAndDelete(req.params.id);
       if (!result) return res.status(404).json({ error: 'Document not found or unauthorized' });
       return res.json({ message: 'Document deleted successfully' });
     }
@@ -155,7 +199,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// ─── POST Batch Delete (User Scoped) ─────────────────────────────────
+// ─── POST Batch Delete (In Dedicated User Collection) ────────────────
 router.post('/batch-delete', async (req, res) => {
   try {
     const { ids } = req.body;
@@ -166,7 +210,8 @@ router.post('/batch-delete', async (req, res) => {
     }
 
     if (isMongoConnected()) {
-      const resDel = await Document.deleteMany({ _id: { $in: ids }, createdBy: currentUsername });
+      const UserModel = getUserDocumentModel(currentUsername);
+      const resDel = await UserModel.deleteMany({ _id: { $in: ids } });
       return res.json({ message: `${resDel.deletedCount} documents deleted successfully` });
     }
 
@@ -181,7 +226,7 @@ router.post('/batch-delete', async (req, res) => {
   }
 });
 
-// ─── POST Batch Import (User Scoped) ─────────────────────────────────
+// ─── POST Batch Import (In Dedicated User Collection) ────────────────
 router.post('/batch-import', async (req, res) => {
   try {
     const { documents, replace } = req.body;
@@ -192,9 +237,11 @@ router.post('/batch-import', async (req, res) => {
     }
 
     if (isMongoConnected()) {
-      // If replace is true, replace ONLY documents belonging to this user
+      const UserModel = getUserDocumentModel(currentUsername);
+
+      // If replace is true, wipe ONLY this user's dedicated collection
       if (replace) {
-        await Document.deleteMany({ createdBy: currentUsername });
+        await UserModel.deleteMany({});
       }
       const docsToInsert = documents.map(d => ({
         trackingNo: d.trackingNo || 'NONE',
@@ -206,7 +253,7 @@ router.post('/batch-import', async (req, res) => {
         kind: d.type === 'receive' ? 'receive' : 'forward',
         createdBy: currentUsername
       }));
-      const inserted = await Document.insertMany(docsToInsert);
+      const inserted = await UserModel.insertMany(docsToInsert);
       return res.status(201).json({ message: `Successfully imported ${inserted.length} documents to MongoDB`, count: inserted.length });
     }
 

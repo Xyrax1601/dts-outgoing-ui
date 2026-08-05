@@ -535,6 +535,8 @@ class DTSStore {
       return [];
     }
 
+    const normUsername = this.currentUser.username.toLowerCase().trim();
+
     if (this.isServerOnline && this.isMongoConnected) {
       try {
         const remoteDocs = await api.fetchDocuments();
@@ -546,7 +548,12 @@ class DTSStore {
           const remoteMap = new Set(remoteDocs.map(r => r.id));
           const pendingUnsynced = unsynced.filter(u => !remoteMap.has(u.id));
 
-          this.documents = [...pendingUnsynced, ...remoteDocs.map(r => ({ ...r, syncedToMongo: true }))];
+          this.documents = [...pendingUnsynced, ...remoteDocs.map(r => ({
+            ...r,
+            createdBy: normUsername,
+            syncedToMongo: true
+          }))];
+
           this.saveLocalDocs(this.documents);
           return this.documents;
         }
@@ -571,7 +578,7 @@ class DTSStore {
       await api.batchImport(unsynced, false);
       const remoteDocs = await api.fetchDocuments();
       if (Array.isArray(remoteDocs)) {
-        this.documents = remoteDocs.map(r => ({ ...r, syncedToMongo: true }));
+        this.documents = remoteDocs.map(r => ({ ...r, createdBy: this.currentUser.username, syncedToMongo: true }));
         this.saveLocalDocs(this.documents);
       }
       return unsynced.length;
@@ -583,12 +590,12 @@ class DTSStore {
 
   loadLocalDocs() {
     if (!this.currentUser) return [];
-    const username = this.currentUser.username;
+    const normUsername = this.currentUser.username.toLowerCase().trim();
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     try {
       const allDocs = JSON.parse(raw);
-      return allDocs.filter(d => d.createdBy === username);
+      return allDocs.filter(d => (d.createdBy || '').toLowerCase().trim() === normUsername);
     } catch (e) {
       return [];
     }
@@ -597,7 +604,7 @@ class DTSStore {
   saveLocalDocs(docs) {
     this.documents = docs;
     if (!this.currentUser) return;
-    const username = this.currentUser.username;
+    const normUsername = this.currentUser.username.toLowerCase().trim();
     
     // Preserve other users' documents in local storage fallback
     let existingAll = [];
@@ -606,8 +613,9 @@ class DTSStore {
       if (raw) existingAll = JSON.parse(raw);
     } catch (e) {}
 
-    const otherUsersDocs = existingAll.filter(d => d.createdBy !== username);
-    const combined = [...docs, ...otherUsersDocs];
+    const otherUsersDocs = existingAll.filter(d => (d.createdBy || '').toLowerCase().trim() !== normUsername);
+    const updatedDocs = docs.map(d => ({ ...d, createdBy: normUsername }));
+    const combined = [...updatedDocs, ...otherUsersDocs];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(combined));
   }
 
@@ -620,6 +628,8 @@ class DTSStore {
   }
 
   async addDocument(doc) {
+    const currentUsername = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'system';
+
     const payload = {
       trackingNo: doc.trackingNo || 'NONE',
       fromOffice: doc.fromOffice || '',
@@ -628,7 +638,7 @@ class DTSStore {
       toOffice: doc.toOffice || '',
       date: doc.date || new Date().toISOString().split('T')[0],
       type: doc.type || 'forward',
-      createdBy: this.currentUser ? this.currentUser.username : 'system'
+      createdBy: currentUsername
     };
 
     if (this.isServerOnline && this.isMongoConnected) {
@@ -655,9 +665,11 @@ class DTSStore {
   }
 
   async updateDocument(id, updatedFields) {
+    const currentUsername = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'system';
+
     if (this.isServerOnline && this.isMongoConnected) {
       try {
-        const updated = await api.updateDocument(id, updatedFields);
+        const updated = await api.updateDocument(id, { ...updatedFields, createdBy: currentUsername });
         await this.syncDocuments();
         return updated;
       } catch (e) {
@@ -671,6 +683,7 @@ class DTSStore {
       this.documents[index] = {
         ...this.documents[index],
         ...updatedFields,
+        createdBy: currentUsername,
         syncedToMongo: false,
         updatedAt: new Date().toISOString()
       };
@@ -714,11 +727,14 @@ class DTSStore {
   }
 
   async saveDocuments(docs, replace = true) {
+    const currentUsername = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'system';
+    const formattedDocs = docs.map(d => ({ ...d, createdBy: currentUsername }));
+
     if (this.isServerOnline && this.isMongoConnected) {
       try {
-        await api.batchImport(docs, replace);
+        await api.batchImport(formattedDocs, replace);
         const remoteDocs = await api.fetchDocuments();
-        this.documents = remoteDocs.map(r => ({ ...r, syncedToMongo: true }));
+        this.documents = remoteDocs.map(r => ({ ...r, createdBy: currentUsername, syncedToMongo: true }));
         this.saveLocalDocs(this.documents);
         return;
       } catch (e) {
@@ -726,11 +742,11 @@ class DTSStore {
       }
     }
 
-    const taggedDocs = docs.map(d => ({
+    const taggedDocs = formattedDocs.map(d => ({
       ...d,
       id: d.id || ('dts-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)),
       syncedToMongo: false,
-      createdBy: this.currentUser ? this.currentUser.username : 'system'
+      createdBy: currentUsername
     }));
 
     if (replace) {
