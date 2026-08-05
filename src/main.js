@@ -58,6 +58,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mongoStatusPill = document.getElementById('mongo-status-pill');
   const mongoStatusText = document.getElementById('mongo-status-text');
 
+  // Storage Warning Banner Elements
+  const storageWarningBanner = document.getElementById('storage-warning-banner');
+  const storageBarFill = document.getElementById('storage-bar-fill');
+  const storageWarningLabel = document.getElementById('storage-warning-label');
+  const storageWarningDetail = document.getElementById('storage-warning-detail');
+  const storageExportBtn = document.getElementById('storage-export-btn');
+
   let isRegisterMode = false;
 
   // Password Visibility Toggle
@@ -183,6 +190,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  async function updateStorageWarningUI() {
+    if (!storageWarningBanner || !store.isMongoConnected) {
+      if (storageWarningBanner) storageWarningBanner.style.display = 'none';
+      return;
+    }
+
+    const storage = await api.checkStorageUsage();
+    if (!storage.available) {
+      storageWarningBanner.style.display = 'none';
+      return;
+    }
+
+    const { usedPercent, usedBytes, limitBytes } = storage;
+    const usedMB = formatBytes(usedBytes);
+    const limitMB = formatBytes(limitBytes);
+
+    // Show banner only when 75% or above
+    if (usedPercent >= 75) {
+      storageWarningBanner.style.display = 'block';
+      storageBarFill.style.width = `${usedPercent}%`;
+
+      const isCritical = usedPercent >= 90;
+      storageWarningBanner.classList.toggle('storage-critical', isCritical);
+
+      if (isCritical) {
+        storageWarningLabel.textContent = '🔴 Storage Critical!';
+        storageWarningDetail.textContent = `MongoDB is at ${usedPercent}% capacity (${usedMB} / ${limitMB}). Export data immediately to prevent data loss.`;
+      } else {
+        storageWarningLabel.textContent = '⚠️ Storage Nearly Full';
+        storageWarningDetail.textContent = `MongoDB is at ${usedPercent}% capacity (${usedMB} / ${limitMB}). Export and free up space soon.`;
+      }
+    } else {
+      storageWarningBanner.style.display = 'none';
+    }
+  }
+
+  // Wire storage export button to export all user documents as CSV
+  storageExportBtn?.addEventListener('click', () => {
+    const docs = store.getDocuments();
+    if (docs.length === 0) {
+      showToast('No documents to export.', 'info');
+      return;
+    }
+    // Use tracker's export logic via a synthetic export event
+    const exportBtnEl = document.getElementById('export-btn');
+    if (exportBtnEl) {
+      exportBtnEl.click();
+      showToast(`✅ Exported ${docs.length} document(s) as CSV. You can now delete old records to free MongoDB space.`, 'success');
+    }
+  });
+
   async function performRealtimeCheck() {
     const res = await store.checkBackendStatus();
     updateMongoStatusUI();
@@ -193,6 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (res.statusChanged) {
       if (store.isMongoConnected) {
         showToast('🟢 Connected to MongoDB Cloud Database (Real-time)', 'success');
+        updateStorageWarningUI();
       } else {
         showToast('🟡 MongoDB disconnected. Switched to Temporary Local Browser Storage.', 'warning');
       }
@@ -203,9 +270,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize Session & Start Realtime Polling
   await store.initStore();
   updateMongoStatusUI();
+  await updateStorageWarningUI();
 
   // Background 3-second polling for Realtime Status Pill
   setInterval(performRealtimeCheck, 3000);
+  // Storage check every 30 seconds (less frequent — it's a heavy call)
+  setInterval(updateStorageWarningUI, 30000);
   window.addEventListener('online', performRealtimeCheck);
   window.addEventListener('focus', performRealtimeCheck);
 

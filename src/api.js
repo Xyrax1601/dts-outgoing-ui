@@ -37,6 +37,16 @@ class DTSApiClient {
     }
   }
 
+  async checkStorageUsage() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health/storage`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return { available: false, usedBytes: 0, limitBytes: 0, usedPercent: 0 };
+      return await res.json();
+    } catch (e) {
+      return { available: false, usedBytes: 0, limitBytes: 0, usedPercent: 0 };
+    }
+  }
+
   // Auth Endpoints
   async register(username, password) {
     const res = await fetch(`${API_BASE_URL}/auth/register`, {

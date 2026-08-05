@@ -78,6 +78,30 @@
         <span id="mongo-status-text">Local Storage Mode</span>
       </div>
 
+      <!-- Storage Usage Warning Banner -->
+      <div id="storage-warning-banner" class="storage-warning-banner" style="display:none;">
+        <div class="storage-warning-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span id="storage-warning-label">Storage Nearly Full</span>
+        </div>
+        <div class="storage-bar-track">
+          <div id="storage-bar-fill" class="storage-bar-fill"></div>
+        </div>
+        <p id="storage-warning-detail" class="storage-warning-detail">MongoDB is at peak capacity.</p>
+        <button type="button" id="storage-export-btn" class="storage-export-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export All & Free Space
+        </button>
+      </div>
+
       <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">
         <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="2" style="display:none;">

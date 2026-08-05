@@ -121,6 +121,36 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Storage Stats Endpoint — returns MongoDB Atlas data size vs 512 MB free tier limit
+app.get('/api/health/storage', async (req, res) => {
+  const isConnected = mongoose.connection.readyState === 1;
+  if (!isConnected) {
+    return res.json({ available: false, usedBytes: 0, limitBytes: 0, usedPercent: 0 });
+  }
+
+  try {
+    const admin = mongoose.connection.db.admin();
+    const listDbs = await admin.listDatabases();
+
+    // Sum all databases' data sizes
+    const totalUsedBytes = listDbs.databases.reduce((sum, db) => sum + (db.sizeOnDisk || 0), 0);
+
+    // MongoDB Atlas Free Tier M0 = 512 MB data cap
+    const LIMIT_BYTES = 512 * 1024 * 1024;
+    const usedPercent = Math.min(100, Math.round((totalUsedBytes / LIMIT_BYTES) * 100));
+
+    return res.json({
+      available: true,
+      usedBytes: totalUsedBytes,
+      limitBytes: LIMIT_BYTES,
+      usedPercent
+    });
+  } catch (err) {
+    console.error('Storage check error:', err.message);
+    return res.json({ available: false, usedBytes: 0, limitBytes: 0, usedPercent: 0 });
+  }
+});
+
 // Hide password in console
 const sanitizedUri = MONGODB_URI.replace(/:([^@]+)@/, ':****@');
 
