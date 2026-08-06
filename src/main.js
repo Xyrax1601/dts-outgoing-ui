@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const navBtns = document.querySelectorAll('.nav-btn');
   const viewSections = document.querySelectorAll('.view-section');
 
-  function switchView(viewId) {
+  async function switchView(viewId) {
     navBtns.forEach(btn => {
       const isTarget = btn.getAttribute('data-view') === viewId;
       btn.classList.toggle('active', isTarget);
@@ -319,6 +319,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     if (viewId === 'track-view') {
+      // Sync scanned docs first so linked document state is always fresh
+      await store.syncScannedDocuments();
       tracker.render();
     } else if (viewId === 'scanner-view') {
       scanner.render();

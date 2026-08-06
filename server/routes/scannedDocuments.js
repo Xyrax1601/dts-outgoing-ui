@@ -20,6 +20,7 @@ function formatScannedDoc(d) {
     id: d._id ? d._id.toString() : d.id,
     title: d.title,
     trackingNo: d.trackingNo || 'NONE',
+    linkedDocId: d.linkedDocId || '',
     date: d.date,
     pages: d.pages || [],
     fileSize: d.fileSize || 0,
@@ -57,7 +58,7 @@ router.get('/', async (req, res) => {
 // ─── POST Create Scanned Document ──────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { title, trackingNo, date, pages, notes } = req.body;
+    const { title, trackingNo, linkedDocId, date, pages, notes } = req.body;
     const currentUsername = req.user.username;
 
     if (!title || !pages || !Array.isArray(pages) || pages.length === 0) {
@@ -71,6 +72,7 @@ router.post('/', async (req, res) => {
     const docData = {
       title: title.trim(),
       trackingNo: (trackingNo || 'NONE').trim(),
+      linkedDocId: (linkedDocId || '').trim(),
       date: date || new Date().toISOString().split('T')[0],
       pages,
       fileSize,

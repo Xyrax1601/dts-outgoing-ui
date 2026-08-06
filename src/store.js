@@ -829,6 +829,20 @@ class DTSStore {
     });
   }
 
+  /**
+   * Primary lookup: find a scanned document linked to a DTS document by its unique ID.
+   * This is the correct linking mechanism that works even for docs with trackingNo='NONE'.
+   */
+  getScannedDocByLinkedDocId(docId) {
+    if (!docId) return null;
+    const norm = String(docId).trim();
+    return this.scannedDocuments.find(d => d.linkedDocId && String(d.linkedDocId).trim() === norm) || null;
+  }
+
+  /**
+   * Legacy fallback: find a scanned document by DTS tracking number match.
+   * Only used for backward-compatibility with scanned docs saved before linkedDocId was introduced.
+   */
   getScannedDocByTrackingNo(trackingNo) {
     if (!trackingNo || String(trackingNo).toUpperCase() === 'NONE') return null;
     const norm = String(trackingNo).trim().toLowerCase();

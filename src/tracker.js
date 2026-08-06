@@ -251,7 +251,8 @@ export class TrackerController {
       const formattedDetails = (doc.details || '').replace(/\n/g, '<br>');
       const isNone = (doc.trackingNo || '').toUpperCase() === 'NONE';
       const kindLabel = doc.type === 'receive' ? 'Receive' : 'Forward';
-      const linkedScannedDoc = store.getScannedDocByTrackingNo(doc.trackingNo);
+      const linkedScannedDoc = store.getScannedDocByLinkedDocId(doc.id)
+        || store.getScannedDocByTrackingNo(doc.trackingNo);
 
       return `
         <tr data-id="${doc.id}" class="${isChecked ? 'row-selected' : ''}">

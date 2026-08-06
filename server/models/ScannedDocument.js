@@ -11,6 +11,11 @@ export const scannedDocumentSchema = new mongoose.Schema({
     default: 'NONE',
     trim: true
   },
+  linkedDocId: {
+    type: String,
+    default: '',
+    trim: true
+  },
   date: {
     type: String,
     default: () => new Date().toISOString().split('T')[0]

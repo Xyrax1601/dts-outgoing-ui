@@ -317,7 +317,21 @@ export class ScannerController {
 
     if (titleHeader) titleHeader.textContent = doc.title.toUpperCase();
     if (dateMeta) dateMeta.textContent = `Date: ${doc.date}`;
-    if (trackingMeta) trackingMeta.textContent = doc.trackingNo && doc.trackingNo !== 'NONE' ? `DTS No: ${doc.trackingNo}` : 'Unlinked Document';
+
+    // Determine link status: prefer linkedDocId lookup (new), fallback to trackingNo (legacy)
+    const linkedDtsDoc = doc.linkedDocId
+      ? store.documents.find(d => d.id === doc.linkedDocId)
+      : null;
+    if (linkedDtsDoc) {
+      const tno = linkedDtsDoc.trackingNo && linkedDtsDoc.trackingNo !== 'NONE'
+        ? `DTS No: ${linkedDtsDoc.trackingNo}` : '';
+      const fromLabel = linkedDtsDoc.fromOffice ? `From: ${linkedDtsDoc.fromOffice}` : '';
+      if (trackingMeta) trackingMeta.textContent = [tno, fromLabel].filter(Boolean).join(' | ');
+    } else if (doc.trackingNo && doc.trackingNo !== 'NONE') {
+      if (trackingMeta) trackingMeta.textContent = `DTS No: ${doc.trackingNo}`;
+    } else {
+      if (trackingMeta) trackingMeta.textContent = 'Unlinked Document';
+    }
 
     if (this.activePreviewPageIndex >= doc.pages.length) {
       this.activePreviewPageIndex = 0;
@@ -428,10 +442,17 @@ export class ScannerController {
     if (titleInput) titleInput.value = `Scanned_Doc_${new Date().toISOString().slice(0,10)}`;
     if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    // Populate Tracking No dropdown options
+    // Populate linked DTS document dropdown — use doc.id as the value (reliable key)
     if (trackingSelect) {
-      trackingSelect.innerHTML = `<option value="NONE">-- Optional: Link to DTS Tracking No. --</option>` +
-        store.documents.map(d => `<option value="${escapeHtml(d.trackingNo)}">${escapeHtml(d.trackingNo)} (${escapeHtml(d.details.slice(0, 30))})</option>`).join('');
+      trackingSelect.innerHTML = `<option value="">-- Optional: Link to a DTS Document --</option>` +
+        store.documents.map(d => {
+          const label = [
+            d.trackingNo && d.trackingNo !== 'NONE' ? d.trackingNo : '',
+            d.fromOffice || '',
+            d.details ? d.details.slice(0, 30) : ''
+          ].filter(Boolean).join(' | ');
+          return `<option value="${escapeHtml(d.id)}">${escapeHtml(label)}</option>`;
+        }).join('');
     }
 
     this.renderCapturedPagesGallery();
@@ -642,7 +663,10 @@ export class ScannerController {
 
     const title = titleInput ? titleInput.value.trim() : 'Scanned Document';
     const date = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
-    const trackingNo = trackingSelect ? trackingSelect.value : 'NONE';
+    const linkedDocId = trackingSelect ? trackingSelect.value.trim() : '';
+    // Derive the tracking number from the linked DTS document (if any)
+    const linkedDtsDoc = linkedDocId ? store.documents.find(d => d.id === linkedDocId) : null;
+    const trackingNo = linkedDtsDoc ? (linkedDtsDoc.trackingNo || 'NONE') : 'NONE';
     const notes = notesInput ? notesInput.value.trim() : '';
 
     const btnSubmit = document.getElementById('scanner-btn-save-doc');
@@ -656,6 +680,7 @@ export class ScannerController {
         title,
         date,
         trackingNo,
+        linkedDocId,
         notes,
         pages: this.capturedPages
       });
