@@ -332,6 +332,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // Global listener to navigate to scanner view and select linked document
+  window.addEventListener('dts:view-scanned-doc', (e) => {
+    const { scannedDocId } = e.detail || {};
+    if (scannedDocId) {
+      switchView('scanner-view');
+      scanner.selectAndPreviewDocument(scannedDocId);
+    }
+  });
+
   // Theme Toggler
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
   const themeText = document.getElementById('theme-btn-text');

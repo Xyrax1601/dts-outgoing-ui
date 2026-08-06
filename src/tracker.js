@@ -251,6 +251,7 @@ export class TrackerController {
       const formattedDetails = (doc.details || '').replace(/\n/g, '<br>');
       const isNone = (doc.trackingNo || '').toUpperCase() === 'NONE';
       const kindLabel = doc.type === 'receive' ? 'Receive' : 'Forward';
+      const linkedScannedDoc = store.getScannedDocByTrackingNo(doc.trackingNo);
 
       return `
         <tr data-id="${doc.id}" class="${isChecked ? 'row-selected' : ''}">
@@ -258,9 +259,17 @@ export class TrackerController {
             <input type="checkbox" class="row-checkbox" data-id="${doc.id}" ${isChecked ? 'checked' : ''}>
           </td>
           <td class="col-tracking">
-            <span class="tracking-badge ${isNone ? 'tracking-none' : ''}">
-              ${escapeHtml(doc.trackingNo || 'NONE')}
-            </span>
+            <div class="tracking-cell-wrapper">
+              <span class="tracking-badge ${isNone ? 'tracking-none' : ''}">
+                ${escapeHtml(doc.trackingNo || 'NONE')}
+              </span>
+              ${linkedScannedDoc ? `
+                <span class="linked-scan-tag" title="Scanned document linked">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 7V4a2 2 0 0 1 2-2h3"></path><path d="M15 2h3a2 2 0 0 1 2 2v3"></path><path d="M4 17v3a2 2 0 0 0 2 2h3"></path><path d="M15 22h3a2 2 0 0 0 2-2v-3"></path><rect x="7" y="7" width="10" height="10" rx="1"></rect></svg>
+                  Linked
+                </span>
+              ` : ''}
+            </div>
           </td>
           <td class="col-from">${escapeHtml(doc.fromOffice || '-')}</td>
           <td class="col-details-cell">
@@ -275,6 +284,15 @@ export class TrackerController {
                 ${kindLabel}
               </span>
               <div class="action-btn-group">
+                ${linkedScannedDoc ? `
+                  <button class="btn-action view-linked-btn" data-scanned-id="${linkedScannedDoc.id}" title="View Linked Scanned Document">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>View Linked Document</span>
+                  </button>
+                ` : ''}
                 <button class="btn-action edit-btn" data-id="${doc.id}" title="Edit Record">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                   <span>Edit</span>
@@ -289,6 +307,13 @@ export class TrackerController {
         </tr>
       `;
     }).join('');
+
+    this.tableBody.querySelectorAll('.view-linked-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const scannedId = btn.getAttribute('data-scanned-id');
+        window.dispatchEvent(new CustomEvent('dts:view-scanned-doc', { detail: { scannedDocId: scannedId } }));
+      });
+    });
 
     this.tableBody.querySelectorAll('.row-checkbox').forEach(cb => {
       cb.addEventListener('change', (e) => {

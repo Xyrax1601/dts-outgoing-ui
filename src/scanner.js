@@ -142,6 +142,15 @@ export class ScannerController {
     });
   }
 
+  selectAndPreviewDocument(docId) {
+    if (!docId) return;
+    this.selectedDocId = docId;
+    this.activePreviewPageIndex = 0;
+    this.currentDocZoom = 1.0;
+    this.currentDocRotation = 0;
+    this.render();
+  }
+
   async render() {
     const datePicker = document.getElementById('scanner-date-filter');
     const dateValue = datePicker ? datePicker.value : '';

@@ -829,6 +829,12 @@ class DTSStore {
     });
   }
 
+  getScannedDocByTrackingNo(trackingNo) {
+    if (!trackingNo || String(trackingNo).toUpperCase() === 'NONE') return null;
+    const norm = String(trackingNo).trim().toLowerCase();
+    return this.scannedDocuments.find(d => d.trackingNo && String(d.trackingNo).trim().toLowerCase() === norm) || null;
+  }
+
   getScannedStorageKey() {
     const username = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'guest';
     return `dts_scanned_docs_${username}_v1`;
