@@ -1850,15 +1850,17 @@ body {
   background: #ffffff;
   border-radius: 4px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  width: 100%;
   max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 8px;
+  padding: 12px;
 }
 
 .scanner-paper-document {
+  width: 100%;
   max-width: 100%;
   display: flex;
   align-items: center;
@@ -1866,8 +1868,9 @@ body {
 }
 
 .scanner-paper-document img {
+  width: 100%;
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 78vh;
   object-fit: contain;
   border-radius: 2px;
 }
