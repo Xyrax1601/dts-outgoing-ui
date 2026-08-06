@@ -531,6 +531,73 @@ class DTSStore {
     this.documents = [];
   }
 
+  getUserOfficesKey() {
+    const norm = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'guest';
+    return `dts_user_offices_${norm}_v1`;
+  }
+
+  getUserOffices() {
+    if (!this.currentUser) return [];
+    try {
+      const raw = localStorage.getItem(this.getUserOfficesKey());
+      if (raw) return JSON.parse(raw);
+      if (this.currentUser.offices && Array.isArray(this.currentUser.offices)) {
+        return this.currentUser.offices;
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async saveUserOffices(offices) {
+    if (!this.currentUser) return [];
+    const clean = Array.from(new Set(offices.map(o => String(o).trim()).filter(Boolean)));
+    try {
+      localStorage.setItem(this.getUserOfficesKey(), JSON.stringify(clean));
+      if (this.currentUser) {
+        this.currentUser.offices = clean;
+        this.saveUser(this.currentUser);
+      }
+      if (this.isServerOnline) {
+        await api.updateUserOffices(clean);
+      }
+    } catch (e) {
+      console.warn('Failed to save user offices:', e);
+    }
+    return clean;
+  }
+
+  async addUserOffice(officeName) {
+    if (!officeName) return this.getUserOffices();
+    const cleanName = officeName.trim();
+    if (!cleanName) return this.getUserOffices();
+
+    const current = this.getUserOffices();
+    if (current.some(o => o.toLowerCase() === cleanName.toLowerCase())) {
+      return current;
+    }
+
+    const updated = [...current, cleanName];
+    return await this.saveUserOffices(updated);
+  }
+
+  async removeUserOffice(officeName) {
+    const current = this.getUserOffices();
+    const norm = String(officeName).trim().toLowerCase();
+    const updated = current.filter(o => o.trim().toLowerCase() !== norm);
+    return await this.saveUserOffices(updated);
+  }
+
+  async updateUserOfficeName(oldName, newName) {
+    const cleanNew = String(newName).trim();
+    if (!cleanNew) return this.getUserOffices();
+    const current = this.getUserOffices();
+    const normOld = String(oldName).trim().toLowerCase();
+    const updated = current.map(o => o.trim().toLowerCase() === normOld ? cleanNew : o);
+    return await this.saveUserOffices(updated);
+  }
+
   async syncDocuments() {
     if (!this.currentUser) {
       this.documents = [];

@@ -2263,3 +2263,83 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+/* ─── Manage Personal Office Options Modal Styles ───────────────── */
+.manage-offices-modal-container {
+  max-width: 580px;
+}
+
+.manage-offices-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.user-offices-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.user-offices-list-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.user-offices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.user-office-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+}
+
+.user-office-item-row:hover {
+  border-color: var(--border-focus);
+}
+
+.user-office-item-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.user-office-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-office-edit-input {
+  font-size: 0.88rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-blue);
+  color: var(--text-primary);
+}
+
+.user-offices-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+}

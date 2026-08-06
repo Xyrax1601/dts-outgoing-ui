@@ -200,9 +200,15 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="forward-from-office">From/Office</label>
-              <input type="text" id="forward-from-office" class="form-input"
-                placeholder="e.g. extension, NMFIC, Research Office" list="office-list" required>
+              <label class="form-label" for="forward-from-office">
+                From/Office
+              </label>
+              <div class="input-with-action">
+                <input type="text" id="forward-from-office" class="form-input"
+                  placeholder="e.g. extension, NMFIC, Research Office" list="user-office-list" required>
+                <button type="button" class="btn-inline-action btn-open-manage-offices"
+                  title="Manage your personal office dropdown list">⚙️ Manage</button>
+              </div>
             </div>
 
             <div class="form-group">
@@ -218,9 +224,15 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="forward-to-office">To/Office</label>
-              <input type="text" id="forward-to-office" class="form-input"
-                placeholder="e.g. accounting/finance, chancellor" list="office-list" required>
+              <label class="form-label" for="forward-to-office">
+                To/Office
+              </label>
+              <div class="input-with-action">
+                <input type="text" id="forward-to-office" class="form-input"
+                  placeholder="e.g. accounting/finance, chancellor" list="user-office-list" required>
+                <button type="button" class="btn-inline-action btn-open-manage-offices"
+                  title="Manage your personal office dropdown list">⚙️ Manage</button>
+              </div>
             </div>
 
             <div class="form-group">
@@ -252,9 +264,15 @@
         <div class="form-card">
           <form id="receive-document-form">
             <div class="form-group">
-              <label class="form-label" for="receive-from-office">From/Office</label>
-              <input type="text" id="receive-from-office" class="form-input" placeholder="e.g. NMFIC, Research Office"
-                list="office-list" required>
+              <label class="form-label" for="receive-from-office">
+                From/Office
+              </label>
+              <div class="input-with-action">
+                <input type="text" id="receive-from-office" class="form-input" placeholder="e.g. NMFIC, Research Office"
+                  list="user-office-list" required>
+                <button type="button" class="btn-inline-action btn-open-manage-offices"
+                  title="Manage your personal office dropdown list">⚙️ Manage</button>
+              </div>
             </div>
 
             <div class="form-group">
@@ -837,11 +855,59 @@
 
           <div class="modal-footer">
             <button type="submit" id="scanner-btn-save-doc" class="btn-primary btn-full">
-              💾 Compress & Save to Database
+              💾 Compress & Save Image
             </button>
           </div>
         </form>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic User-Specific Office Datalist -->
+  <datalist id="user-office-list"></datalist>
+
+  <!-- Modal 6: Manage Personal Office Options Modal -->
+  <div id="manage-offices-modal" class="modal-overlay">
+    <div class="modal-container manage-offices-modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"
+            style="vertical-align: middle; margin-right: 6px;">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+          Manage Your Personal Office Dropdown Options
+        </h3>
+        <button type="button" id="manage-offices-modal-close" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="manage-offices-desc">
+          Add, edit, or remove custom office choices for your account. These options appear exclusively in your personal
+          <strong>From/Office</strong> and <strong>To/Office</strong> dropdown fields.
+        </p>
+
+        <form id="add-office-form" class="add-office-form">
+          <div class="input-with-action">
+            <input type="text" id="new-office-input" class="form-input"
+              placeholder="Type new office name (e.g. CET Office)..." required>
+            <button type="submit" class="btn-primary" style="white-space: nowrap;">
+              + Add Office
+            </button>
+          </div>
+        </form>
+
+        <div class="user-offices-list-container">
+          <h4 class="user-offices-list-title">Saved Office Options</h4>
+          <div id="user-offices-list" class="user-offices-list">
+            <!-- Dynamic user office items rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="manage-offices-done-btn" class="btn-secondary">Done</button>
       </div>
     </div>
   </div>

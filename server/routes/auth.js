@@ -49,7 +49,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       message: 'User registered successfully in MongoDB Cloud',
       token,
-      user: { id: user._id, username: user.username, role: user.role }
+      user: { id: user._id, username: user.username, role: user.role, offices: user.offices || [] }
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -73,7 +73,7 @@ router.post('/login', async (req, res) => {
       return res.json({
         message: 'Login successful (Local session mode)',
         token,
-        user: { id: 'local-id', username: normUsername, role: 'admin' }
+        user: { id: 'local-id', username: normUsername, role: 'admin', offices: [] }
       });
     }
 
@@ -93,7 +93,7 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Login successful',
       token,
-      user: { id: user._id, username: user.username, role: user.role }
+      user: { id: user._id, username: user.username, role: user.role, offices: user.offices || [] }
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -113,17 +113,51 @@ router.get('/me', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (!isMongoConnected()) {
-      return res.json({ user: { id: decoded.id, username: decoded.username, role: 'admin' } });
+      return res.json({ user: { id: decoded.id, username: decoded.username, role: 'admin', offices: [] } });
     }
 
     const user = await User.findById(decoded.id).select('-passwordHash');
     if (!user) {
-      return res.json({ user: { id: decoded.id, username: decoded.username, role: 'admin' } });
+      return res.json({ user: { id: decoded.id, username: decoded.username, role: 'admin', offices: [] } });
     }
 
     res.json({ user });
   } catch (err) {
     res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
+// Update User Office List
+router.put('/offices', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { offices } = req.body;
+
+    if (!Array.isArray(offices)) {
+      return res.status(400).json({ error: 'Offices must be an array of strings' });
+    }
+
+    const cleanOffices = offices.map(o => String(o).trim()).filter(Boolean);
+
+    if (isMongoConnected()) {
+      const user = await User.findByIdAndUpdate(
+        decoded.id,
+        { offices: cleanOffices },
+        { new: true }
+      ).select('-passwordHash');
+      return res.json({ message: 'User offices updated successfully', offices: user ? user.offices : cleanOffices });
+    }
+
+    res.json({ message: 'User offices updated locally', offices: cleanOffices });
+  } catch (err) {
+    console.error('Update offices error:', err);
+    res.status(500).json({ error: 'Failed to update user offices' });
   }
 });
 

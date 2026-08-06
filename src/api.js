@@ -89,6 +89,22 @@ class DTSApiClient {
     }
   }
 
+  async updateUserOffices(offices) {
+    if (!this.token) return { offices };
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/offices`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ offices })
+      });
+      if (!res.ok) throw new Error('Failed to update offices on server');
+      return await res.json();
+    } catch (e) {
+      console.warn('Update offices API error:', e);
+      return { offices };
+    }
+  }
+
   // Document Endpoints
   async fetchDocuments() {
     const res = await fetch(`${API_BASE_URL}/documents`, {

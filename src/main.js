@@ -190,9 +190,195 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateMongoStatusUI();
     await store.syncDocuments();
     await store.syncScannedDocuments();
+    renderUserOfficeDatalist();
     tracker.render();
     scanner.render();
   }
+
+  // Dynamic Per-User Office Datalist Renderer
+  function renderUserOfficeDatalist() {
+    const datalist = document.getElementById('user-office-list');
+    if (!datalist) return;
+    const offices = store.getUserOffices();
+    datalist.innerHTML = offices.map(o => `<option value="${escapeHtml(o)}"></option>`).join('');
+  }
+
+  // Manage Offices Modal Controllers & Renderer
+  const manageOfficesModal = document.getElementById('manage-offices-modal');
+  const closeManageOfficesBtn = document.getElementById('manage-offices-modal-close');
+  const doneManageOfficesBtn = document.getElementById('manage-offices-done-btn');
+  const openManageOfficesBtns = document.querySelectorAll('.btn-open-manage-offices');
+  const addOfficeForm = document.getElementById('add-office-form');
+  const newOfficeInput = document.getElementById('new-office-input');
+  const userOfficesListContainer = document.getElementById('user-offices-list');
+
+  function openManageOfficesModal() {
+    if (manageOfficesModal) {
+      renderUserOfficesModalList();
+      manageOfficesModal.classList.add('modal-open');
+    }
+  }
+
+  function closeManageOfficesModal() {
+    if (manageOfficesModal) {
+      manageOfficesModal.classList.remove('modal-open');
+      renderUserOfficeDatalist();
+    }
+  }
+
+  openManageOfficesBtns.forEach(btn => {
+    btn.addEventListener('click', () => openManageOfficesModal());
+  });
+
+  closeManageOfficesBtn?.addEventListener('click', () => closeManageOfficesModal());
+  doneManageOfficesBtn?.addEventListener('click', () => closeManageOfficesModal());
+
+  addOfficeForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!newOfficeInput) return;
+    const val = newOfficeInput.value.trim();
+    if (!val) return;
+    await store.addUserOffice(val);
+    newOfficeInput.value = '';
+    showToast(`Added "${val}" to your office dropdown options!`, 'success');
+    renderUserOfficesModalList();
+    renderUserOfficeDatalist();
+  });
+
+  function renderUserOfficesModalList() {
+    if (!userOfficesListContainer) return;
+    const offices = store.getUserOffices();
+
+    if (offices.length === 0) {
+      userOfficesListContainer.innerHTML = `
+        <div class="user-offices-empty">
+          <p>No saved office options yet.</p>
+          <p style="font-size: 0.8rem; margin-top: 4px; color: var(--text-muted);">
+            Type a new office above or submit documents to automatically build your custom list.
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    userOfficesListContainer.innerHTML = offices.map(o => `
+      <div class="user-office-item-row" data-name="${escapeHtml(o)}">
+        <span class="user-office-item-name">${escapeHtml(o)}</span>
+        <div class="user-office-item-actions">
+          <button type="button" class="btn-action edit-office-btn" title="Edit Office Name">
+            ✏️ Edit
+          </button>
+          <button type="button" class="btn-action delete-btn del-office-btn" title="Remove Office Option">
+            🗑️ Delete
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    userOfficesListContainer.querySelectorAll('.edit-office-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const row = e.target.closest('.user-office-item-row');
+        const oldName = row.getAttribute('data-name');
+        const nameSpan = row.querySelector('.user-office-item-name');
+        
+        nameSpan.innerHTML = `<input type="text" class="user-office-edit-input" value="${escapeHtml(oldName)}" />`;
+        const input = nameSpan.querySelector('input');
+        input.focus();
+
+        const saveEdit = async () => {
+          const newName = input.value.trim();
+          if (newName && newName !== oldName) {
+            await store.updateUserOfficeName(oldName, newName);
+            showToast(`Updated office name to "${newName}"`, 'info');
+          }
+          renderUserOfficesModalList();
+          renderUserOfficeDatalist();
+        };
+
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Enter') {
+            evt.preventDefault();
+            input.blur();
+          }
+        });
+      });
+    });
+
+    userOfficesListContainer.querySelectorAll('.del-office-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const row = e.target.closest('.user-office-item-row');
+        const name = row.getAttribute('data-name');
+        if (confirm(`Remove "${name}" from your personal office options?`)) {
+          await store.removeUserOffice(name);
+          showToast(`Removed "${name}" from dropdown options`, 'info');
+          renderUserOfficesModalList();
+          renderUserOfficeDatalist();
+        }
+      });
+    });
+  }
+
+  // Forward Form Submission
+  const forwardForm = document.getElementById('forward-document-form');
+  forwardForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const record = {
+      trackingNo: document.getElementById('forward-dts-no').value.trim() || 'NONE',
+      fromOffice: document.getElementById('forward-from-office').value.trim(),
+      details: document.getElementById('forward-details').value.trim(),
+      receivedBy: document.getElementById('forward-received-by').value.trim(),
+      toOffice: document.getElementById('forward-to-office').value.trim(),
+      date: document.getElementById('forward-date').value,
+      type: 'forward'
+    };
+
+    try {
+      await store.addDocument(record);
+      // Auto-save typed office names to user's personal office list
+      if (record.fromOffice) await store.addUserOffice(record.fromOffice);
+      if (record.toOffice) await store.addUserOffice(record.toOffice);
+      renderUserOfficeDatalist();
+
+      showToast('Forwarded document record saved successfully to MongoDB!', 'success');
+      forwardForm.reset();
+      if (forwardDateInput) forwardDateInput.value = todayStr;
+      switchView('track-view');
+    } catch (err) {
+      showToast(err.message || 'Failed to save document record.', 'error');
+    }
+  });
+
+  // Receive Form Submission
+  const receiveForm = document.getElementById('receive-document-form');
+  receiveForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const record = {
+      trackingNo: 'NONE',
+      fromOffice: document.getElementById('receive-from-office').value.trim(),
+      details: document.getElementById('receive-details').value.trim(),
+      receivedBy: document.getElementById('receive-received-by').value.trim(),
+      toOffice: '',
+      date: document.getElementById('receive-date').value,
+      type: 'receive'
+    };
+
+    try {
+      await store.addDocument(record);
+      // Auto-save typed office name to user's personal office list
+      if (record.fromOffice) await store.addUserOffice(record.fromOffice);
+      renderUserOfficeDatalist();
+
+      showToast('Received document record saved successfully to MongoDB!', 'success');
+      receiveForm.reset();
+      if (receiveDateInput) receiveDateInput.value = todayStr;
+      switchView('track-view');
+    } catch (err) {
+      showToast(err.message || 'Failed to save document record.', 'error');
+    }
+  });
 
   function updateMongoStatusUI() {
     if (!mongoStatusPill || !mongoStatusText) return;
@@ -391,57 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Forward Form Submission
-  const forwardForm = document.getElementById('forward-document-form');
-  forwardForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const record = {
-      trackingNo: document.getElementById('forward-dts-no').value.trim() || 'NONE',
-      fromOffice: document.getElementById('forward-from-office').value.trim(),
-      details: document.getElementById('forward-details').value.trim(),
-      receivedBy: document.getElementById('forward-received-by').value.trim(),
-      toOffice: document.getElementById('forward-to-office').value.trim(),
-      date: document.getElementById('forward-date').value,
-      type: 'forward'
-    };
-
-    try {
-      await store.addDocument(record);
-      showToast('Forwarded document record saved successfully to MongoDB!', 'success');
-      forwardForm.reset();
-      if (forwardDateInput) forwardDateInput.value = todayStr;
-      switchView('track-view');
-    } catch (err) {
-      showToast(err.message || 'Failed to save document record.', 'error');
-    }
-  });
-
-  // Receive Form Submission
-  const receiveForm = document.getElementById('receive-document-form');
-  receiveForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const record = {
-      trackingNo: 'NONE',
-      fromOffice: document.getElementById('receive-from-office').value.trim(),
-      details: document.getElementById('receive-details').value.trim(),
-      receivedBy: document.getElementById('receive-received-by').value.trim(),
-      toOffice: '',
-      date: document.getElementById('receive-date').value,
-      type: 'receive'
-    };
-
-    try {
-      await store.addDocument(record);
-      showToast('Received document record saved successfully to MongoDB!', 'success');
-      receiveForm.reset();
-      if (receiveDateInput) receiveDateInput.value = todayStr;
-      switchView('track-view');
-    } catch (err) {
-      showToast(err.message || 'Failed to save document record.', 'error');
-    }
-  });
+  // (Form submissions handled in office management section above)
 });
 
 function escapeHtml(str) {
