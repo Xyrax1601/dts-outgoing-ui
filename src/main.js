@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       store.saveUser(userObj);
       await store.syncDocuments();
+      clearAuthInputs();
       showAppScreen(userObj);
     } catch (err) {
       showLoginError(err.message || 'Authentication failed. Please check your credentials.');
@@ -151,14 +152,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function clearAuthInputs() {
+    if (authUsernameInput) authUsernameInput.value = '';
+    if (authPasswordInput) authPasswordInput.value = '';
+    if (authPasswordInput) authPasswordInput.type = 'password';
+    if (btnTogglePassword) btnTogglePassword.textContent = 'Show';
+    if (loginErrorAlert) {
+      loginErrorAlert.textContent = '';
+      loginErrorAlert.style.display = 'none';
+    }
+  }
+
   // Logout Handler
   btnLogout?.addEventListener('click', () => {
     store.logout();
+    clearAuthInputs();
     showToast('Signed out successfully', 'info');
     showLoginScreen();
   });
 
   function showLoginScreen() {
+    clearAuthInputs();
     if (loginScreen) loginScreen.style.display = 'flex';
     if (appContainer) appContainer.style.display = 'none';
     tracker.render();
