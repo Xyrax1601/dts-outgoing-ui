@@ -150,6 +150,47 @@ class DTSApiClient {
     if (!res.ok) throw new Error('Failed to import documents to server');
     return await res.json();
   }
+
+  // Scanned Document Endpoints
+  async fetchScannedDocuments(date = '') {
+    const url = new URL(`${API_BASE_URL}/scanned-documents`);
+    if (date) url.searchParams.set('date', date);
+
+    const res = await fetch(url.toString(), {
+      headers: this.getHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to fetch scanned documents');
+    return await res.json();
+  }
+
+  async createScannedDocument(scannedDoc) {
+    const res = await fetch(`${API_BASE_URL}/scanned-documents`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(scannedDoc)
+    });
+    if (!res.ok) throw new Error('Failed to save scanned document');
+    return await res.json();
+  }
+
+  async deleteScannedDocument(id) {
+    const res = await fetch(`${API_BASE_URL}/scanned-documents/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete scanned document');
+    return await res.json();
+  }
+
+  async deleteBatchScannedDocuments(ids) {
+    const res = await fetch(`${API_BASE_URL}/scanned-documents/batch-delete`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ ids })
+    });
+    if (!res.ok) throw new Error('Failed to batch delete scanned documents');
+    return await res.json();
+  }
 }
 
 export const api = new DTSApiClient();

@@ -3,6 +3,7 @@
 import { store } from './store.js';
 import { api } from './api.js';
 import { TrackerController } from './tracker.js';
+import { ScannerController } from './scanner.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Toast Notification System
@@ -33,8 +34,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 3500);
   }
 
-  // Initialize Tracker Controller
+  // Initialize Controllers
   const tracker = new TrackerController(showToast);
+  const scanner = new ScannerController(showToast);
 
   // Authentication UI Elements
   const loginScreen = document.getElementById('login-screen');
@@ -187,7 +189,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateMongoStatusUI();
     await store.syncDocuments();
+    await store.syncScannedDocuments();
     tracker.render();
+    scanner.render();
   }
 
   function updateMongoStatusUI() {
@@ -316,6 +320,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (viewId === 'track-view') {
       tracker.render();
+    } else if (viewId === 'scanner-view') {
+      scanner.render();
     }
   }
 

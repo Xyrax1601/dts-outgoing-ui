@@ -477,12 +477,14 @@ class DTSStore {
     this.isServerOnline = false;
     this.isMongoConnected = false;
     this.documents = [];
+    this.scannedDocuments = [];
     this.initStore();
   }
 
   async initStore() {
     await this.checkBackendStatus();
     await this.syncDocuments();
+    await this.syncScannedDocuments();
   }
 
   async checkBackendStatus() {
@@ -776,6 +778,149 @@ class DTSStore {
   setTheme(theme) {
     this.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
+  }
+
+  /**
+   * Client-side HTML5 Canvas Image Compression helper.
+   * Resizes image to fit maxDim (default 1600px) and applies JPEG quality (default 0.70)
+   * returning lightweight base64 Data URL string (~150KB per page).
+   */
+  async compressImage(input, maxDim = 1600, quality = 0.70) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = (err) => reject(err || new Error('Failed to load image for compression'));
+
+      if (typeof input === 'string') {
+        img.src = input;
+      } else if (input instanceof Blob || input instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(input);
+      } else {
+        reject(new Error('Invalid image input'));
+      }
+    });
+  }
+
+  getScannedStorageKey() {
+    const username = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'guest';
+    return `dts_scanned_docs_${username}_v1`;
+  }
+
+  loadLocalScannedDocs() {
+    try {
+      const raw = localStorage.getItem(this.getScannedStorageKey());
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveLocalScannedDocs(docs) {
+    try {
+      localStorage.setItem(this.getScannedStorageKey(), JSON.stringify(docs));
+      this.scannedDocuments = docs;
+    } catch (e) {
+      console.warn('LocalStorage full for scanned docs:', e);
+    }
+  }
+
+  async syncScannedDocuments(dateFilter = '') {
+    if (!this.currentUser) {
+      this.scannedDocuments = [];
+      return [];
+    }
+
+    if (this.isServerOnline) {
+      try {
+        const remoteDocs = await api.fetchScannedDocuments(dateFilter);
+        this.scannedDocuments = remoteDocs;
+        this.saveLocalScannedDocs(remoteDocs);
+        return remoteDocs;
+      } catch (err) {
+        console.warn('Failed to fetch scanned documents online, falling back to local:', err.message);
+      }
+    }
+
+    let docs = this.loadLocalScannedDocs();
+    if (dateFilter) docs = docs.filter(d => d.date === dateFilter);
+    this.scannedDocuments = docs;
+    return docs;
+  }
+
+  async addScannedDocument(docData) {
+    if (this.isServerOnline) {
+      try {
+        const created = await api.createScannedDocument(docData);
+        this.scannedDocuments.unshift(created);
+        this.saveLocalScannedDocs(this.scannedDocuments);
+        return created;
+      } catch (err) {
+        console.warn('Failed to save scanned document online, saving locally:', err.message);
+      }
+    }
+
+    const localDoc = {
+      id: `scanned_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      ...docData,
+      createdAt: new Date().toISOString()
+    };
+    this.scannedDocuments.unshift(localDoc);
+    this.saveLocalScannedDocs(this.scannedDocuments);
+    return localDoc;
+  }
+
+  async deleteScannedDocument(id) {
+    if (this.isServerOnline) {
+      try {
+        await api.deleteScannedDocument(id);
+      } catch (err) {
+        console.warn('Failed to delete scanned document on server:', err.message);
+      }
+    }
+
+    this.scannedDocuments = this.scannedDocuments.filter(d => d.id !== id);
+    this.saveLocalScannedDocs(this.scannedDocuments);
+  }
+
+  async deleteBatchScannedDocuments(ids) {
+    if (this.isServerOnline) {
+      try {
+        await api.deleteBatchScannedDocuments(ids);
+      } catch (err) {
+        console.warn('Failed to batch delete scanned documents on server:', err.message);
+      }
+    }
+
+    this.scannedDocuments = this.scannedDocuments.filter(d => !ids.includes(d.id));
+    this.saveLocalScannedDocs(this.scannedDocuments);
   }
 }
 

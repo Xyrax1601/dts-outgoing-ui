@@ -147,6 +147,17 @@
           </svg>
           Track Document
         </button>
+
+        <button class="nav-btn" data-view="scanner-view" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 7V4a2 2 0 0 1 2-2h3"></path>
+            <path d="M15 2h3a2 2 0 0 1 2 2v3"></path>
+            <path d="M4 17v3a2 2 0 0 0 2 2h3"></path>
+            <path d="M15 22h3a2 2 0 0 0 2-2v-3"></path>
+            <rect x="7" y="7" width="10" height="10" rx="1"></rect>
+          </svg>
+          Scanned Documents
+        </button>
       </nav>
 
       <!-- Logged-in User Profile Card -->
@@ -383,6 +394,120 @@
         </div>
       </section>
 
+      <!-- View 4: Scanned Documents & Scanner -->
+      <section id="scanner-view" class="view-section">
+        <div class="scanner-split-container">
+
+          <!-- Left Pane: List of Scanned Documents -->
+          <div class="scanner-left-pane">
+            <div class="scanner-action-bar">
+              <button type="button" id="scanner-btn-add-doc" class="btn-primary scanner-add-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                ADD DOCUMENT
+              </button>
+
+              <div class="scanner-filter-date-wrapper">
+                <input type="date" id="scanner-date-filter" class="form-input scanner-date-input"
+                  title="Filter documents by date">
+              </div>
+            </div>
+
+            <div class="scanner-list-header">
+              <div class="scanner-list-title-row">
+                <label class="scanner-select-all-label" onclick="event.stopPropagation()">
+                  <input type="checkbox" id="scanner-select-all">
+                  <span class="custom-checkbox"></span>
+                </label>
+                <h3 class="scanner-list-title">LIST OF SCANNED DOCUMENTS</h3>
+                <span id="scanner-selected-count" class="scanner-selected-count"></span>
+              </div>
+              <button type="button" id="scanner-btn-batch-delete" class="btn-danger-outline btn-xs"
+                style="display:none;">
+                Delete Selected
+              </button>
+            </div>
+
+            <div id="scanner-doc-list" class="scanner-doc-list">
+              <!-- Rendered via ScannerController JS -->
+            </div>
+          </div>
+
+          <!-- Right Pane: Scanned Document Viewer -->
+          <div class="scanner-right-pane">
+            <div class="scanner-preview-header">
+              <div class="scanner-preview-title-meta">
+                <h3 id="scanner-preview-title" class="scanner-preview-title">SCANNED DOCUMENT</h3>
+                <div class="scanner-preview-submeta">
+                  <span id="scanner-preview-date"></span>
+                  <span id="scanner-preview-tracking" class="badge-tracking"></span>
+                </div>
+              </div>
+
+              <div class="scanner-preview-toolbar">
+                <button type="button" id="scanner-preview-zoomin" class="scanner-tool-btn" title="Zoom In">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                  </svg>
+                </button>
+                <button type="button" id="scanner-preview-zoomout" class="scanner-tool-btn" title="Zoom Out">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                  </svg>
+                </button>
+                <button type="button" id="scanner-preview-rotate" class="scanner-tool-btn" title="Rotate 90°">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                </button>
+                <button type="button" id="scanner-preview-download" class="scanner-tool-btn" title="Download Image">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </button>
+                <button type="button" id="scanner-preview-print" class="scanner-tool-btn" title="Print Document">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                  </svg>
+                </button>
+                <button type="button" id="scanner-preview-delete" class="scanner-tool-btn danger"
+                  title="Delete Document">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="scanner-paper-wrapper">
+              <div id="scanner-paper-sheet" class="scanner-paper-sheet">
+                <!-- Rendered Document Sheet Preview -->
+              </div>
+            </div>
+
+            <div id="scanner-page-nav" class="scanner-page-nav" style="display:none;">
+              <button type="button" id="scanner-prev-page" class="btn-secondary btn-xs">◀ Prev Page</button>
+              <span id="scanner-page-indicator" class="scanner-page-indicator">Page 1 of 1</span>
+              <button type="button" id="scanner-next-page" class="btn-secondary btn-xs">Next Page ▶</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -565,6 +690,158 @@
           </svg>
           Print Document
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Smartphone Camera & Laptop Printer Scanner Modal -->
+  <div id="scanner-modal" class="modal-overlay">
+    <div class="modal-container scanner-modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"
+            style="vertical-align: middle; margin-right: 6px;">
+            <path d="M4 7V4a2 2 0 0 1 2-2h3"></path>
+            <path d="M15 2h3a2 2 0 0 1 2 2v3"></path>
+            <path d="M4 17v3a2 2 0 0 0 2 2h3"></path>
+            <path d="M15 22h3a2 2 0 0 0 2-2v-3"></path>
+            <rect x="7" y="7" width="10" height="10" rx="1"></rect>
+          </svg>
+          Document Scanner (Smartphones & Desktop PCs)
+        </h3>
+        <button type="button" id="scanner-modal-close" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="scanner-modal-tabs">
+        <button type="button" id="scanner-tab-camera" class="scanner-tab-btn active">
+          📷 Smartphone / Webcam Live Stream
+        </button>
+        <button type="button" id="scanner-tab-flatbed" class="scanner-tab-btn">
+          🖨️ Laptop Scanner / Flatbed Upload
+        </button>
+      </div>
+
+      <div class="modal-body scanner-modal-body">
+
+        <!-- Tab 1: Live Camera Stream Viewfinder -->
+        <div id="scanner-content-camera" class="scanner-tab-content">
+          <div class="scanner-viewfinder-box">
+            <video id="scanner-video-feed" class="scanner-video" autoplay playsinline muted></video>
+            <div id="scanner-video-placeholder" class="scanner-placeholder" style="display:none;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <p>Initializing camera stream...</p>
+            </div>
+            <div class="scanner-viewfinder-overlay">
+              <div class="document-guide-box">
+                <span class="guide-corner top-left"></span>
+                <span class="guide-corner top-right"></span>
+                <span class="guide-corner bottom-left"></span>
+                <span class="guide-corner bottom-right"></span>
+                <span class="guide-text">Align document within frame</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="scanner-camera-controls">
+            <div class="scanner-filter-selectors">
+              <span class="filter-label">Enhance Filter:</span>
+              <button type="button" class="scanner-filter-btn active" data-filter="none">Normal Color</button>
+              <button type="button" class="scanner-filter-btn" data-filter="grayscale">B&W Gray</button>
+              <button type="button" class="scanner-filter-btn" data-filter="contrast">High Contrast</button>
+            </div>
+
+            <div class="camera-btn-group">
+              <button type="button" id="scanner-btn-start-camera" class="btn-secondary">
+                🔄 Start Camera
+              </button>
+              <button type="button" id="scanner-btn-capture" class="btn-primary btn-lg">
+                📸 Capture Page
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Laptop Flatbed Printer Scanner & File Upload -->
+        <div id="scanner-content-flatbed" class="scanner-tab-content" style="display:none;">
+          <div class="printer-scan-card">
+            <div class="printer-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+            </div>
+            <h4>Desktop Printer / Flatbed Scanner Integration</h4>
+            <p>Request permission from connected USB or Network scanner printers, or import scanned PDF/image files
+              directly.</p>
+            <button type="button" id="scanner-btn-request-printer" class="btn-primary">
+              🖨️ Request Hardware Printer/Scanner Permission
+            </button>
+          </div>
+
+          <div class="import-divider">
+            <span>OR Choose Scanned Image File(s)</span>
+          </div>
+
+          <div class="scanner-file-dropzone" onclick="document.getElementById('scanner-file-input').click()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p>Click or drag scanned images here (PNG, JPG, WebP)</p>
+            <input type="file" id="scanner-file-input" accept="image/*" multiple style="display:none;">
+          </div>
+        </div>
+
+        <!-- Captured Pages Preview Gallery -->
+        <div class="scanner-captured-gallery-section">
+          <div class="gallery-header">
+            <h4>Captured Page(s) Gallery</h4>
+            <span id="scanner-captured-count" class="badge-count">0 pages</span>
+          </div>
+          <div id="scanner-captured-gallery" class="scanner-captured-gallery">
+            <!-- Captured thumbnails -->
+          </div>
+        </div>
+
+        <!-- Document Metadata Form -->
+        <form id="scanner-modal-form">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="scanner-doc-title">Document Title</label>
+              <input type="text" id="scanner-doc-title" class="form-input" required
+                placeholder="e.g. Scanned MOA Solana">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="scanner-doc-date">Date</label>
+              <input type="date" id="scanner-doc-date" class="form-input" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="scanner-doc-tracking">Link to DTS Tracking No. (Optional)</label>
+            <select id="scanner-doc-tracking" class="form-select">
+              <option value="NONE">-- Optional: Link to DTS Tracking No. --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="scanner-doc-notes">Document Notes / Remarks</label>
+            <input type="text" id="scanner-doc-notes" class="form-input"
+              placeholder="e.g. 2 pages scanned from CET office scanner...">
+          </div>
+
+          <div class="modal-footer">
+            <button type="submit" id="scanner-btn-save-doc" class="btn-primary btn-full">
+              💾 Compress & Save to Database
+            </button>
+          </div>
+        </form>
+
       </div>
     </div>
   </div>

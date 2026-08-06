@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import dns from 'dns';
 import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
+import scannedDocumentRoutes from './routes/scannedDocuments.js';
 
 dotenv.config();
 
@@ -110,6 +111,7 @@ app.get('/', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/scanned-documents', scannedDocumentRoutes);
 
 // Health Endpoint
 app.get('/api/health', (req, res) => {
