@@ -912,6 +912,43 @@
     </div>
   </div>
 
+  <!-- Modal 7: Inactivity Warning Modal -->
+  <div id="inactivity-modal" class="modal-overlay">
+    <div class="modal-container inactivity-modal-container">
+      <div class="modal-header" style="border-bottom-color: rgba(245, 158, 11, 0.3);">
+        <h3 class="modal-title" style="color: #f59e0b;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"
+            style="vertical-align: middle; margin-right: 8px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          Session Expiring Soon
+        </h3>
+      </div>
+
+      <div class="modal-body text-center" style="text-align: center; padding: 28px 24px;">
+        <div class="inactivity-badge-container">
+          <span class="inactivity-countdown-badge" id="inactivity-countdown-timer">60</span>
+        </div>
+        <h4 style="font-size: 1.1rem; margin-top: 12px; font-weight: 600; color: var(--text-primary);">
+          You have been inactive for almost 1 hour
+        </h4>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 6px; line-height: 1.5;">
+          For your account security, you will be automatically logged out and credentials cleared when the timer reaches 0.
+        </p>
+      </div>
+
+      <div class="modal-footer" style="justify-content: center; gap: 14px;">
+        <button type="button" id="btn-stay-logged-in" class="btn-primary" style="padding: 10px 24px;">
+          🔒 Stay Logged In
+        </button>
+        <button type="button" id="btn-inactivity-logout" class="btn-secondary" style="padding: 10px 18px;">
+          Sign Out Now
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 

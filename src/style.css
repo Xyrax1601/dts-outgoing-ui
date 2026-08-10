@@ -2343,3 +2343,38 @@ body {
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
 }
+
+/* ─── Inactivity Warning Modal Styles ───────────────────────────── */
+.inactivity-modal-container {
+  max-width: 440px;
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+}
+
+.inactivity-badge-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.inactivity-countdown-badge {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.12);
+  border: 2px solid #f59e0b;
+  color: #f59e0b;
+  font-size: 2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+  animation: pulseCountdown 1s infinite alternate;
+}
+
+@keyframes pulseCountdown {
+  from { transform: scale(1); box-shadow: 0 0 12px rgba(245, 158, 11, 0.2); }
+  to { transform: scale(1.06); box-shadow: 0 0 24px rgba(245, 158, 11, 0.45); }
+}

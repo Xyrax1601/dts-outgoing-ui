@@ -1,9 +1,8 @@
-// Main Application Entry Point, Auth & Navigation Router
-
 import { store } from './store.js';
 import { api } from './api.js';
 import { TrackerController } from './tracker.js';
 import { ScannerController } from './scanner.js';
+import { InactivityManager } from './inactivityManager.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Toast Notification System
@@ -165,8 +164,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Inactivity Warning Modal Elements & Controller
+  const inactivityModal = document.getElementById('inactivity-modal');
+  const inactivityTimerText = document.getElementById('inactivity-countdown-timer');
+  const btnStayLoggedIn = document.getElementById('btn-stay-logged-in');
+  const btnInactivityLogout = document.getElementById('btn-inactivity-logout');
+
+  const inactivityManager = new InactivityManager({
+    onWarning: (remainingSeconds) => {
+      if (inactivityModal) {
+        inactivityModal.classList.add('modal-open');
+      }
+      if (inactivityTimerText) {
+        inactivityTimerText.textContent = String(remainingSeconds);
+      }
+    },
+    onTimeout: () => {
+      if (inactivityModal) {
+        inactivityModal.classList.remove('modal-open');
+      }
+      store.logout();
+      clearAuthInputs();
+      showToast('⚠️ Automatically logged out due to 1 hour of inactivity.', 'warning');
+      showLoginScreen();
+    },
+    onActivityReset: () => {
+      if (inactivityModal) {
+        inactivityModal.classList.remove('modal-open');
+      }
+    }
+  });
+
+  btnStayLoggedIn?.addEventListener('click', () => {
+    inactivityManager.resetTimer();
+    if (inactivityModal) {
+      inactivityModal.classList.remove('modal-open');
+    }
+    showToast('Session extended.', 'info');
+  });
+
+  btnInactivityLogout?.addEventListener('click', () => {
+    inactivityManager.stop();
+    if (inactivityModal) {
+      inactivityModal.classList.remove('modal-open');
+    }
+    store.logout();
+    clearAuthInputs();
+    showToast('Signed out successfully', 'info');
+    showLoginScreen();
+  });
+
   // Logout Handler
   btnLogout?.addEventListener('click', () => {
+    inactivityManager.stop();
+    if (inactivityModal) {
+      inactivityModal.classList.remove('modal-open');
+    }
     store.logout();
     clearAuthInputs();
     showToast('Signed out successfully', 'info');
@@ -174,6 +227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   function showLoginScreen() {
+    inactivityManager.stop();
     clearAuthInputs();
     if (loginScreen) loginScreen.style.display = 'flex';
     if (appContainer) appContainer.style.display = 'none';
@@ -193,6 +247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderUserOfficeDatalist();
     tracker.render();
     scanner.render();
+
+    // Start 1-Hour Inactivity Monitoring
+    inactivityManager.start();
   }
 
   // Dynamic Per-User Office Datalist Renderer

@@ -6,15 +6,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 class DTSApiClient {
   constructor() {
-    this.token = localStorage.getItem('dts_jwt_token') || null;
+    this.token = sessionStorage.getItem('dts_jwt_token') || null;
   }
 
   setToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('dts_jwt_token', token);
+      sessionStorage.setItem('dts_jwt_token', token);
     } else {
-      localStorage.removeItem('dts_jwt_token');
+      sessionStorage.removeItem('dts_jwt_token');
+      localStorage.removeItem('dts_jwt_token'); // Clean legacy
     }
   }
 

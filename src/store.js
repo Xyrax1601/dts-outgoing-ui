@@ -507,7 +507,7 @@ class DTSStore {
   }
 
   loadUser() {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
       return JSON.parse(raw);
@@ -519,9 +519,13 @@ class DTSStore {
   saveUser(user) {
     this.currentUser = user;
     if (user) {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+      // Set initial activity timestamp on sign-in
+      localStorage.setItem('dts_last_activity_time', String(Date.now()));
     } else {
-      localStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(USER_KEY);
+      localStorage.removeItem(USER_KEY); // Clean legacy
+      localStorage.removeItem('dts_last_activity_time');
     }
   }
 
@@ -529,6 +533,7 @@ class DTSStore {
     api.setToken(null);
     this.saveUser(null);
     this.documents = [];
+    localStorage.removeItem('dts_last_activity_time');
   }
 
   getUserOfficesKey() {
