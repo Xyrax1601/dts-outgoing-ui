@@ -1,4 +1,5 @@
 import { store } from './store.js';
+import { extractDtsSlipData } from './ocrParser.js';
 
 export class ScannerController {
   constructor(showToastFn) {
@@ -14,11 +15,15 @@ export class ScannerController {
     this.cameraStream = null;
     this.activeFilter = 'none'; // 'none', 'grayscale', 'contrast'
 
+    // Scan & Auto-Fill Modal State
+    this.scanForwardCameraStream = null;
+
     this.init();
   }
 
   init() {
     this.bindEvents();
+    this.bindScanForwardEvents();
   }
 
   bindEvents() {
@@ -62,6 +67,7 @@ export class ScannerController {
     const btnDelete = document.getElementById('scanner-preview-delete');
     const btnPrevPage = document.getElementById('scanner-prev-page');
     const btnNextPage = document.getElementById('scanner-next-page');
+    const btnExtractForward = document.getElementById('scanner-preview-extract-forward');
 
     btnZoomIn?.addEventListener('click', () => {
       this.currentDocZoom = Math.min(2.5, this.currentDocZoom + 0.2);
@@ -104,6 +110,17 @@ export class ScannerController {
       }
     });
 
+    // Extract current scanned document to Forward Document form
+    btnExtractForward?.addEventListener('click', async () => {
+      const doc = store.scannedDocuments.find(d => d.id === this.selectedDocId);
+      if (!doc || !doc.pages || doc.pages.length === 0) {
+        this.showToast('Please select a valid scanned document with image pages.', 'warning');
+        return;
+      }
+      const pageImg = doc.pages[this.activePreviewPageIndex] || doc.pages[0];
+      await this.processImageForAutoFill(pageImg, true);
+    });
+
     // Scanner Modal Handlers
     const modalCloseBtn = document.getElementById('scanner-modal-close');
     const tabCamera = document.getElementById('scanner-tab-camera');
@@ -141,6 +158,335 @@ export class ScannerController {
       });
     });
   }
+
+  // ─── SCAN & AUTO-FILL TO FORWARD FORM CONTROLLERS ──────────────────────
+
+  bindScanForwardEvents() {
+    const btnOpenModal = document.getElementById('btn-open-scan-forward');
+    const btnBannerCamera = document.getElementById('btn-banner-scan-camera');
+    const btnBannerUpload = document.getElementById('btn-banner-upload-slip');
+    const forwardSlipFileInput = document.getElementById('forward-slip-file-input');
+    const quickBanner = document.getElementById('forward-quick-scan-banner');
+
+    const modal = document.getElementById('scan-to-forward-modal');
+    const modalClose = document.getElementById('scan-forward-modal-close');
+    const tabCamera = document.getElementById('scan-forward-tab-camera');
+    const tabUpload = document.getElementById('scan-forward-tab-upload');
+    const btnStartCamera = document.getElementById('scan-forward-btn-start-camera');
+    const btnCapture = document.getElementById('scan-forward-btn-capture');
+    const browseBtn = document.getElementById('scan-forward-browse-btn');
+    const scanFileInput = document.getElementById('scan-forward-file-input');
+    const dropzone = document.getElementById('scan-forward-dropzone');
+
+    btnOpenModal?.addEventListener('click', () => this.openScanForwardModal('camera'));
+    btnBannerCamera?.addEventListener('click', () => this.openScanForwardModal('camera'));
+
+    btnBannerUpload?.addEventListener('click', () => {
+      if (forwardSlipFileInput) forwardSlipFileInput.click();
+    });
+
+    forwardSlipFileInput?.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        await this.processImageForAutoFill(file, false);
+        forwardSlipFileInput.value = '';
+      }
+    });
+
+    // Quick Dropzone on Forward Banner
+    if (quickBanner) {
+      ['dragenter', 'dragover'].forEach(name => {
+        quickBanner.addEventListener(name, (e) => {
+          e.preventDefault();
+          quickBanner.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(name => {
+        quickBanner.addEventListener(name, (e) => {
+          e.preventDefault();
+          quickBanner.classList.remove('drag-over');
+        });
+      });
+
+      quickBanner.addEventListener('drop', async (e) => {
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          await this.processImageForAutoFill(file, false);
+        }
+      });
+    }
+
+    modalClose?.addEventListener('click', () => this.closeScanForwardModal());
+
+    tabCamera?.addEventListener('click', () => this.switchScanForwardTab('camera'));
+    tabUpload?.addEventListener('click', () => this.switchScanForwardTab('upload'));
+
+    btnStartCamera?.addEventListener('click', () => this.startScanForwardCamera());
+    btnCapture?.addEventListener('click', () => this.captureScanForwardFrame());
+
+    browseBtn?.addEventListener('click', () => {
+      if (scanFileInput) scanFileInput.click();
+    });
+
+    scanFileInput?.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        await this.processImageForAutoFill(file, false);
+        scanFileInput.value = '';
+      }
+    });
+
+    // Dropzone inside modal
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('drag-over');
+        });
+      });
+
+      dropzone.addEventListener('drop', async (e) => {
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          await this.processImageForAutoFill(file, false);
+        }
+      });
+    }
+  }
+
+  openScanForwardModal(defaultTab = 'camera') {
+    const modal = document.getElementById('scan-to-forward-modal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    this.switchScanForwardTab(defaultTab);
+  }
+
+  closeScanForwardModal() {
+    const modal = document.getElementById('scan-to-forward-modal');
+    if (modal) modal.style.display = 'none';
+    this.stopScanForwardCamera();
+    this.hideOcrProgress();
+  }
+
+  switchScanForwardTab(tabName) {
+    const tabCam = document.getElementById('scan-forward-tab-camera');
+    const tabUp = document.getElementById('scan-forward-tab-upload');
+    const contentCam = document.getElementById('scan-forward-content-camera');
+    const contentUp = document.getElementById('scan-forward-content-upload');
+
+    if (tabName === 'camera') {
+      tabCam?.classList.add('active');
+      tabUp?.classList.remove('active');
+      if (contentCam) contentCam.style.display = 'block';
+      if (contentUp) contentUp.style.display = 'none';
+      this.startScanForwardCamera();
+    } else {
+      tabUp?.classList.add('active');
+      tabCam?.classList.remove('active');
+      if (contentUp) contentUp.style.display = 'block';
+      if (contentCam) contentCam.style.display = 'none';
+      this.stopScanForwardCamera();
+    }
+  }
+
+  async startScanForwardCamera() {
+    const video = document.getElementById('scan-forward-video');
+    const placeholder = document.getElementById('scan-forward-video-placeholder');
+    if (!video) return;
+
+    try {
+      this.stopScanForwardCamera();
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      };
+
+      this.scanForwardCameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = this.scanForwardCameraStream;
+      video.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      await video.play();
+    } catch (err) {
+      console.warn('Scan forward camera access error:', err);
+      if (placeholder) {
+        placeholder.style.display = 'flex';
+        placeholder.querySelector('p').textContent = 'Camera blocked or unavailable. Please switch to Upload tab.';
+      }
+      if (video) video.style.display = 'none';
+    }
+  }
+
+  stopScanForwardCamera() {
+    if (this.scanForwardCameraStream) {
+      this.scanForwardCameraStream.getTracks().forEach(t => t.stop());
+      this.scanForwardCameraStream = null;
+    }
+  }
+
+  async captureScanForwardFrame() {
+    const video = document.getElementById('scan-forward-video');
+    if (!video || !this.scanForwardCameraStream) {
+      this.showToast('Camera is not active. Please start camera or upload an image.', 'warning');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    await this.processImageForAutoFill(dataUrl, false);
+  }
+
+  showOcrProgress(title = 'Scanning DTS Document...', initialPercent = 10, statusText = 'Enhancing image for document scanning...') {
+    const overlay = document.getElementById('ocr-processing-overlay');
+    const titleEl = document.getElementById('ocr-progress-title');
+    const statusEl = document.getElementById('ocr-progress-status');
+    const barEl = document.getElementById('ocr-progress-bar-fill');
+    const percentEl = document.getElementById('ocr-progress-percent');
+
+    if (overlay) overlay.style.display = 'flex';
+    if (titleEl) titleEl.textContent = title;
+    if (statusEl) statusEl.textContent = statusText;
+    if (barEl) barEl.style.width = `${initialPercent}%`;
+    if (percentEl) percentEl.textContent = `${initialPercent}%`;
+  }
+
+  updateOcrProgress(percent, statusText) {
+    const statusEl = document.getElementById('ocr-progress-status');
+    const barEl = document.getElementById('ocr-progress-bar-fill');
+    const percentEl = document.getElementById('ocr-progress-percent');
+
+    if (statusEl && statusText) statusEl.textContent = statusText;
+    if (barEl) barEl.style.width = `${percent}%`;
+    if (percentEl) percentEl.textContent = `${percent}%`;
+  }
+
+  hideOcrProgress() {
+    const overlay = document.getElementById('ocr-processing-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  /**
+   * Run OCR & Smart Parser on image source and auto-fill Forward Document form
+   */
+  async processImageForAutoFill(imageSource, isFromViewer = false) {
+    if (!isFromViewer) {
+      this.showOcrProgress('Scanning Document Slip...', 10, 'Enhancing image contrast and layout...');
+    } else {
+      this.openScanForwardModal('upload');
+      this.showOcrProgress('Extracting Scanned Document...', 10, 'Processing scanned document image...');
+    }
+
+    try {
+      const extracted = await extractDtsSlipData(imageSource, (percent, status) => {
+        this.updateOcrProgress(percent, status);
+      });
+
+      this.closeScanForwardModal();
+      this.applyExtractedDataToForwardForm(extracted);
+    } catch (err) {
+      console.error('OCR Extraction Error:', err);
+      this.hideOcrProgress();
+      this.showToast('Failed to extract data from document slip: ' + (err.message || err), 'error');
+    }
+  }
+
+  /**
+   * Populates the Forward Document Form fields and triggers glow animation
+   */
+  applyExtractedDataToForwardForm(data) {
+    // Switch to Forward Document View
+    const forwardNavBtn = document.querySelector('.nav-btn[data-view="forward-view"]');
+    if (forwardNavBtn) forwardNavBtn.click();
+
+    const dtsInput = document.getElementById('forward-dts-no');
+    const fromOfficeInput = document.getElementById('forward-from-office');
+    const detailsInput = document.getElementById('forward-details');
+    const dateInput = document.getElementById('forward-date');
+    const toOfficeInput = document.getElementById('forward-to-office');
+
+    const fieldsToAnimate = [];
+
+    if (dtsInput) {
+      if (data.trackingNo) {
+        dtsInput.value = data.trackingNo;
+        fieldsToAnimate.push(dtsInput);
+      }
+    }
+
+    if (fromOfficeInput) {
+      if (data.fromOffice) {
+        fromOfficeInput.value = data.fromOffice;
+        fieldsToAnimate.push(fromOfficeInput);
+        // Also ensure it is registered in user office options
+        store.addUserOffice(data.fromOffice);
+      }
+    }
+
+    if (detailsInput) {
+      if (data.details) {
+        detailsInput.value = data.details;
+        fieldsToAnimate.push(detailsInput);
+      }
+    }
+
+    if (dateInput && data.date) {
+      dateInput.value = data.date;
+      fieldsToAnimate.push(dateInput);
+    }
+
+    if (toOfficeInput && data.toOffice && !toOfficeInput.value) {
+      toOfficeInput.value = data.toOffice;
+      fieldsToAnimate.push(toOfficeInput);
+      store.addUserOffice(data.toOffice);
+    }
+
+    // Apply pulse glow highlight animation
+    fieldsToAnimate.forEach(el => {
+      el.classList.remove('field-autofilled');
+      // Trigger reflow to restart CSS animation
+      void el.offsetWidth;
+      el.classList.add('field-autofilled');
+      setTimeout(() => el.classList.remove('field-autofilled'), 3000);
+    });
+
+    // Smooth scroll form card into view and focus
+    const formCard = document.querySelector('#forward-view .form-card');
+    if (formCard) {
+      formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    if (dtsInput && data.trackingNo) {
+      dtsInput.focus();
+    } else if (detailsInput) {
+      detailsInput.focus();
+    }
+
+    const fieldsSummary = [
+      data.trackingNo ? `DTS: ${data.trackingNo}` : '',
+      data.fromOffice ? `Office: ${data.fromOffice}` : '',
+      data.details ? `Details: ${data.details.split('\n')[0].slice(0, 25)}...` : ''
+    ].filter(Boolean).join(' | ');
+
+    this.showToast(`✨ Slip data extracted! [${fieldsSummary}] Review & edit before saving.`, 'success');
+  }
+
+  // ─── SCANNED DOCUMENTS COLLECTION CONTROLLER ──────────────────────────
 
   selectAndPreviewDocument(docId) {
     if (!docId) return;
@@ -294,12 +640,14 @@ export class ScannerController {
     const paperContainer = document.getElementById('scanner-paper-sheet');
     const pageNavContainer = document.getElementById('scanner-page-nav');
     const pageIndicator = document.getElementById('scanner-page-indicator');
+    const btnExtractForward = document.getElementById('scanner-preview-extract-forward');
 
     if (!doc || !doc.pages || doc.pages.length === 0) {
       if (titleHeader) titleHeader.textContent = 'SCANNED DOCUMENT';
       if (dateMeta) dateMeta.textContent = '';
       if (trackingMeta) trackingMeta.textContent = '';
       if (pageNavContainer) pageNavContainer.style.display = 'none';
+      if (btnExtractForward) btnExtractForward.style.display = 'none';
       if (paperContainer) {
         paperContainer.innerHTML = `
           <div class="scanner-paper-empty">
@@ -315,10 +663,11 @@ export class ScannerController {
       return;
     }
 
+    if (btnExtractForward) btnExtractForward.style.display = 'inline-flex';
     if (titleHeader) titleHeader.textContent = doc.title.toUpperCase();
     if (dateMeta) dateMeta.textContent = `Date: ${doc.date}`;
 
-    // Determine link status: prefer linkedDocId lookup (new), fallback to trackingNo (legacy)
+    // Determine link status: prefer linkedDocId lookup, fallback to trackingNo
     const linkedDtsDoc = doc.linkedDocId
       ? store.documents.find(d => d.id === doc.linkedDocId)
       : null;
@@ -431,7 +780,6 @@ export class ScannerController {
     this.capturedPages = [];
     this.activeFilter = 'none';
 
-    // Reset modal form
     const form = document.getElementById('scanner-modal-form');
     if (form) form.reset();
 
@@ -442,7 +790,6 @@ export class ScannerController {
     if (titleInput) titleInput.value = `Scanned_Doc_${new Date().toISOString().slice(0,10)}`;
     if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    // Populate linked DTS document dropdown — use doc.id as the value (reliable key)
     if (trackingSelect) {
       trackingSelect.innerHTML = `<option value="">-- Optional: Link to a DTS Document --</option>` +
         store.documents.map(d => {
@@ -458,7 +805,6 @@ export class ScannerController {
     this.renderCapturedPagesGallery();
     modal.style.display = 'flex';
 
-    // Default to Camera mode on smartphones/tablets, Flatbed/File on PC
     const isMobile = /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
     if (isMobile) {
       this.switchModalTab('camera');
@@ -505,7 +851,7 @@ export class ScannerController {
 
       const constraints = {
         video: {
-          facingMode: { ideal: 'environment' }, // Rear camera on phones
+          facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
           height: { ideal: 1080 }
         }
@@ -545,7 +891,6 @@ export class ScannerController {
     canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
 
-    // Apply document contrast/grayscale filter if selected
     if (this.activeFilter === 'grayscale') {
       ctx.filter = 'grayscale(100%) contrast(120%)';
     } else if (this.activeFilter === 'contrast') {
@@ -555,7 +900,6 @@ export class ScannerController {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const rawDataUrl = canvas.toDataURL('image/jpeg', 0.90);
 
-    // Compress captured canvas image automatically
     try {
       const compressedDataUrl = await store.compressImage(rawDataUrl, 1600, 0.70);
       this.capturedPages.push(compressedDataUrl);
@@ -569,7 +913,6 @@ export class ScannerController {
   async requestPrinterScannerAccess() {
     this.showToast('Scanning hardware request sent to device...', 'info');
 
-    // Attempt browser Web API Device / ImageCapture request if available
     try {
       if ('mediaDevice' in navigator || (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices)) {
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -584,7 +927,6 @@ export class ScannerController {
       console.log('Hardware search error:', e);
     }
 
-    // Trigger file dialog as flatbed printer/scanner fallthrough
     const fileInput = document.getElementById('scanner-file-input');
     if (fileInput) fileInput.click();
   }
@@ -664,7 +1006,6 @@ export class ScannerController {
     const title = titleInput ? titleInput.value.trim() : 'Scanned Document';
     const date = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
     const linkedDocId = trackingSelect ? trackingSelect.value.trim() : '';
-    // Derive the tracking number from the linked DTS document (if any)
     const linkedDtsDoc = linkedDocId ? store.documents.find(d => d.id === linkedDocId) : null;
     const trackingNo = linkedDtsDoc ? (linkedDtsDoc.trackingNo || 'NONE') : 'NONE';
     const notes = notesInput ? notesInput.value.trim() : '';

@@ -2411,3 +2411,268 @@ body {
   from { transform: scale(1); box-shadow: 0 0 12px rgba(245, 158, 11, 0.2); }
   to { transform: scale(1.06); box-shadow: 0 0 24px rgba(245, 158, 11, 0.45); }
 }
+
+/* ─── Scan Document & Auto-Fill Feature Styles ───────────────────────── */
+.section-header-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.btn-scan-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all var(--transition-normal);
+}
+
+.btn-scan-trigger:hover {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+}
+
+/* Quick Scan Dropzone Banner in Forward View */
+.scan-quick-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(59, 130, 246, 0.03));
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+}
+
+.scan-quick-banner:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(59, 130, 246, 0.06));
+}
+
+.scan-banner-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.scan-banner-content {
+  flex: 1;
+}
+
+.scan-banner-content h4 {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.scan-banner-content p {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.scan-banner-content strong {
+  color: var(--accent-blue);
+}
+
+.scan-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Scan & Auto-Fill Modal Layout */
+.scan-forward-modal-container {
+  max-width: 720px;
+  width: 100%;
+}
+
+.scan-upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 44px 24px;
+  border: 2px dashed rgba(59, 130, 246, 0.4);
+  border-radius: var(--radius-lg);
+  background: rgba(59, 130, 246, 0.03);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.scan-upload-dropzone:hover,
+.scan-upload-dropzone.drag-over {
+  border-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.1);
+  transform: scale(1.01);
+}
+
+.scan-upload-dropzone .dropzone-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.scan-upload-dropzone h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.scan-upload-dropzone p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* OCR Processing Progress Overlay */
+.ocr-progress-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 15, 29, 0.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  border-radius: var(--radius-lg);
+}
+
+.ocr-progress-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 360px;
+  width: 90%;
+  padding: 28px 24px;
+  background: var(--bg-card);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+.ocr-spinner-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  overflow: hidden;
+}
+
+.ocr-laser-scanner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, transparent);
+  box-shadow: 0 0 12px #3b82f6;
+  animation: laserScanAnim 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes laserScanAnim {
+  0% { top: 4px; opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { top: 72px; opacity: 0.4; }
+}
+
+.ocr-progress-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.ocr-progress-status {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  min-height: 20px;
+}
+
+.ocr-progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.ocr-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.ocr-progress-percent {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+
+/* Highlighting in Scanner Toolbar */
+.highlight-tool-btn {
+  background: rgba(37, 99, 235, 0.18) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  padding: 6px 12px !important;
+  gap: 6px !important;
+}
+
+.highlight-tool-btn:hover {
+  background: rgba(37, 99, 235, 0.3) !important;
+  color: #93c5fd !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Dynamic Field Autofilled Pulse Glow Animation */
+.field-autofilled {
+  animation: fieldAutofillGlow 2.5s ease-out;
+  border-color: #3b82f6 !important;
+}
+
+@keyframes fieldAutofillGlow {
+  0% {
+    background-color: rgba(59, 130, 246, 0.28);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.45);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.14);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
