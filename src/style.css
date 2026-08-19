@@ -1374,53 +1374,86 @@ body {
 /* Native Print Stylesheet (Paper-Saving Optimized) */
 @media print {
   @page {
-    size: portrait;
-    margin: 6mm 6mm 6mm 6mm;
+    size: auto;
+    margin: 6mm;
+  }
+
+  /* Completely collapse non-printable containers from document flow */
+  #login-screen,
+  #app,
+  .modal-overlay:not(#print-preview-modal),
+  .toast-container {
+    display: none !important;
   }
 
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
 
-  body * {
-    visibility: hidden;
+  /* Expand print preview modal into printable container */
+  #print-preview-modal {
+    display: block !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    overflow: visible !important;
   }
 
-  .print-preview-body,
-  .print-preview-body * {
-    visibility: visible;
+  #print-preview-modal * {
+    visibility: visible !important;
   }
 
   .print-preview-modal-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    border: none;
-  }
-
-  .modal-overlay {
-    position: absolute;
-    background: #ffffff;
-    padding: 0;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   .modal-header,
   .modal-footer,
-  .print-paper-saver-notice {
+  .print-paper-saver-notice,
+  .modal-close-btn {
     display: none !important;
   }
 
   .print-preview-body {
-    padding: 0;
-    max-height: none;
-    overflow: visible;
-    zoom: 0.92;
+    position: static !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  .print-document-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .print-table th {
