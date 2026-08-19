@@ -183,46 +183,8 @@
       <!-- View 1: Forward Document Form -->
       <section id="forward-view" class="view-section">
         <header class="section-header">
-          <div class="section-header-title-wrap">
-            <h2 class="section-title">Forward Document</h2>
-            <p class="section-desc">Record outgoing documents and auto-fill details from scanned document slips</p>
-          </div>
-          <div class="section-header-actions">
-            <button type="button" id="btn-open-scan-forward" class="btn-primary btn-scan-trigger">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M4 7V4a2 2 0 0 1 2-2h3"></path>
-                <path d="M15 2h3a2 2 0 0 1 2 2v3"></path>
-                <path d="M4 17v3a2 2 0 0 0 2 2h3"></path>
-                <path d="M15 22h3a2 2 0 0 0 2-2v-3"></path>
-                <rect x="7" y="7" width="10" height="10" rx="1"></rect>
-              </svg>
-              <span>Scan Document & Auto-Fill</span>
-            </button>
-          </div>
+          <h2 class="section-title">Forward Document</h2>
         </header>
-
-        <!-- Quick Scan & Dropzone Banner -->
-        <div id="forward-quick-scan-banner" class="scan-quick-banner">
-          <div class="scan-banner-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-              <circle cx="12" cy="13" r="4"></circle>
-            </svg>
-          </div>
-          <div class="scan-banner-content">
-            <h4>Auto-Fill from Document Slip</h4>
-            <p>Scan with camera or drop a DTS slip image (PNG, JPG, WebP) to instantly extract <strong>Tracking No.</strong>, <strong>From Office</strong>, and <strong>Details</strong>.</p>
-          </div>
-          <div class="scan-banner-actions">
-            <button type="button" id="btn-banner-scan-camera" class="btn-primary btn-sm">
-              📷 Use Camera
-            </button>
-            <button type="button" id="btn-banner-upload-slip" class="btn-secondary btn-sm">
-              📁 Choose Image
-            </button>
-            <input type="file" id="forward-slip-file-input" accept="image/*" style="display:none;">
-          </div>
-        </div>
 
         <div class="form-card">
           <form id="forward-document-form">
@@ -537,14 +499,6 @@
                     <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                     <rect x="6" y="14" width="12" height="8"></rect>
                   </svg>
-                </button>
-                <button type="button" id="scanner-preview-extract-forward" class="scanner-tool-btn highlight-tool-btn"
-                  title="Extract DTS Fields to Forward Document Form">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                  <span>Auto-Fill Forward Form</span>
                 </button>
                 <button type="button" id="scanner-preview-delete" class="scanner-tool-btn danger"
                   title="Delete Document">
@@ -991,115 +945,6 @@
         <button type="button" id="btn-inactivity-logout" class="btn-secondary" style="padding: 10px 18px;">
           Sign Out Now
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 8: Scan & Auto-Fill to Forward Form Modal -->
-  <div id="scan-to-forward-modal" class="modal-overlay">
-    <div class="modal-container scan-forward-modal-container">
-      <div class="modal-header">
-        <h3 class="modal-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"
-            style="vertical-align: middle; margin-right: 8px;">
-            <path d="M4 7V4a2 2 0 0 1 2-2h3"></path>
-            <path d="M15 2h3a2 2 0 0 1 2 2v3"></path>
-            <path d="M4 17v3a2 2 0 0 0 2 2h3"></path>
-            <path d="M15 22h3a2 2 0 0 0 2-2v-3"></path>
-            <rect x="7" y="7" width="10" height="10" rx="1"></rect>
-          </svg>
-          Scan & Auto-Fill Forward Document
-        </h3>
-        <button type="button" id="scan-forward-modal-close" class="modal-close-btn">&times;</button>
-      </div>
-
-      <div class="scanner-modal-tabs">
-        <button type="button" id="scan-forward-tab-camera" class="scanner-tab-btn active">
-          📷 Smartphone / Webcam Camera
-        </button>
-        <button type="button" id="scan-forward-tab-upload" class="scanner-tab-btn">
-          📁 Upload Document Slip Image
-        </button>
-      </div>
-
-      <div class="modal-body scan-forward-modal-body">
-        
-        <!-- Tab 1: Live Camera Scan -->
-        <div id="scan-forward-content-camera" class="scanner-tab-content">
-          <div class="scanner-viewfinder-box">
-            <video id="scan-forward-video" class="scanner-video" autoplay playsinline muted></video>
-            <div id="scan-forward-video-placeholder" class="scanner-placeholder" style="display:none;">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
-              </svg>
-              <p>Camera feed initializing...</p>
-            </div>
-            <div class="scanner-viewfinder-overlay">
-              <div class="document-guide-box">
-                <span class="guide-corner top-left"></span>
-                <span class="guide-corner top-right"></span>
-                <span class="guide-corner bottom-left"></span>
-                <span class="guide-corner bottom-right"></span>
-                <span class="guide-text">Align DTS Slip (Tracking No. & Office) within frame</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="scanner-camera-controls">
-            <div class="camera-btn-group" style="width: 100%; justify-content: space-between;">
-              <button type="button" id="scan-forward-btn-start-camera" class="btn-secondary">
-                🔄 Switch / Restart Camera
-              </button>
-              <button type="button" id="scan-forward-btn-capture" class="btn-primary btn-lg">
-                📸 Capture & Extract Data
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 2: File Upload Dropzone -->
-        <div id="scan-forward-content-upload" class="scanner-tab-content" style="display:none;">
-          <div class="scan-upload-dropzone" id="scan-forward-dropzone">
-            <div class="dropzone-icon-wrap">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-            </div>
-            <h4>Drop document slip image here</h4>
-            <p>Supports PNG, JPG, JPEG, WebP (e.g. Reference-NewFeature.png)</p>
-            <button type="button" id="scan-forward-browse-btn" class="btn-primary btn-sm" style="margin-top: 10px;">
-              Browse Image File
-            </button>
-            <input type="file" id="scan-forward-file-input" accept="image/*" style="display:none;">
-          </div>
-        </div>
-
-        <!-- OCR Scanning Processing Overlay -->
-        <div id="ocr-processing-overlay" class="ocr-progress-overlay" style="display: none;">
-          <div class="ocr-progress-card">
-            <div class="ocr-spinner-wrap">
-              <div class="ocr-laser-scanner"></div>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-            </div>
-            <h4 id="ocr-progress-title" class="ocr-progress-title">Scanning DTS Document...</h4>
-            <p id="ocr-progress-status" class="ocr-progress-status">Enhancing image & recognizing text...</p>
-            
-            <div class="ocr-progress-bar-track">
-              <div id="ocr-progress-bar-fill" class="ocr-progress-bar-fill" style="width: 15%;"></div>
-            </div>
-            <span id="ocr-progress-percent" class="ocr-progress-percent">15%</span>
-          </div>
-        </div>
-
       </div>
     </div>
   </div>
