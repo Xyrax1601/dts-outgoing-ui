@@ -29,7 +29,7 @@ class DTSApiClient {
 
   async checkHealth() {
     try {
-      const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(30000) });
       if (!res.ok) return { online: false, mongoConnected: false };
       const data = await res.json();
       return { online: true, mongoConnected: data.mongoConnected };
