@@ -536,6 +536,81 @@ class DTSStore {
     localStorage.removeItem('dts_last_activity_time');
   }
 
+  async verifyCurrentPassword(password) {
+    if (!this.currentUser) throw new Error('Not logged in');
+    return await api.verifyPassword(password);
+  }
+
+  async updateCredentials({ currentPassword, newUsername, newPassword }) {
+    if (!this.currentUser) throw new Error('Not logged in');
+    const oldUsername = (this.currentUser.username || '').toLowerCase().trim();
+    const result = await api.updateCredentials({ currentPassword, newUsername, newPassword });
+
+    const updatedUser = result.user || {
+      ...this.currentUser,
+      username: (newUsername ? newUsername.toLowerCase().trim() : oldUsername)
+    };
+
+    const nextUsername = (updatedUser.username || '').toLowerCase().trim();
+
+    // If username changed, migrate all local storage assets
+    if (nextUsername && nextUsername !== oldUsername) {
+      // 1. Migrate documents in STORAGE_KEY
+      try {
+        const rawDocs = localStorage.getItem(STORAGE_KEY);
+        if (rawDocs) {
+          const allDocs = JSON.parse(rawDocs);
+          if (Array.isArray(allDocs)) {
+            const migratedDocs = allDocs.map(d => {
+              if ((d.createdBy || '').toLowerCase().trim() === oldUsername) {
+                return { ...d, createdBy: nextUsername };
+              }
+              return d;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedDocs));
+          }
+        }
+      } catch (err) {
+        console.warn('Local document migration warning:', err);
+      }
+
+      // 2. Migrate user office settings
+      try {
+        const oldOfficesKey = `dts_user_offices_${oldUsername}_v1`;
+        const newOfficesKey = `dts_user_offices_${nextUsername}_v1`;
+        const rawOffices = localStorage.getItem(oldOfficesKey);
+        if (rawOffices) {
+          localStorage.setItem(newOfficesKey, rawOffices);
+          localStorage.removeItem(oldOfficesKey);
+        }
+      } catch (err) {
+        console.warn('Local offices migration warning:', err);
+      }
+
+      // 3. Migrate scanned documents
+      try {
+        const oldScannedKey = `dts_scanned_docs_${oldUsername}_v1`;
+        const newScannedKey = `dts_scanned_docs_${nextUsername}_v1`;
+        const rawScanned = localStorage.getItem(oldScannedKey);
+        if (rawScanned) {
+          const scannedList = JSON.parse(rawScanned);
+          if (Array.isArray(scannedList)) {
+            const migratedScanned = scannedList.map(s => ({ ...s, createdBy: nextUsername }));
+            localStorage.setItem(newScannedKey, JSON.stringify(migratedScanned));
+          }
+          localStorage.removeItem(oldScannedKey);
+        }
+      } catch (err) {
+        console.warn('Local scanned docs migration warning:', err);
+      }
+    }
+
+    this.saveUser(updatedUser);
+    this.documents = this.loadLocalDocs();
+    this.scannedDocuments = this.loadLocalScannedDocs();
+    return result;
+  }
+
   getUserOfficesKey() {
     const norm = this.currentUser ? this.currentUser.username.toLowerCase().trim() : 'guest';
     return `dts_user_offices_${norm}_v1`;
@@ -659,6 +734,98 @@ class DTSStore {
     } catch (err) {
       console.error('Failed to sync offline docs to MongoDB:', err);
       return 0;
+    }
+  }
+
+  async syncAllDataToMongo() {
+    if (!this.currentUser) {
+      return { success: false, reason: 'unauthorized', message: 'Please log in to sync data.' };
+    }
+
+    const status = await this.checkBackendStatus();
+    if (!status.online) {
+      return { success: false, reason: 'offline', message: 'Backend server is unreachable. All records remain safely stored locally.' };
+    }
+    if (!status.mongoConnected) {
+      return { success: false, reason: 'no_mongo', message: 'MongoDB Cloud is not connected. Documents are stored in local browser mode.' };
+    }
+
+    let syncedDocsCount = 0;
+    let syncedScannedCount = 0;
+
+    try {
+      // 1. Sync Tracking Documents
+      const localDocs = this.loadLocalDocs();
+      const remoteDocs = await api.fetchDocuments();
+      const remoteIdSet = new Set(Array.isArray(remoteDocs) ? remoteDocs.map(r => r.id) : []);
+
+      // Filter docs not yet in remote DB or marked unsynced
+      const unsyncedDocs = localDocs.filter(d => 
+        d.syncedToMongo === false || 
+        (d.id && (d.id.startsWith('dts-') || d.id.startsWith('mem-') || !remoteIdSet.has(d.id)))
+      );
+
+      if (unsyncedDocs.length > 0) {
+        console.log(`Syncing ${unsyncedDocs.length} local tracking documents to MongoDB...`);
+        await api.batchImport(unsyncedDocs, false);
+        syncedDocsCount = unsyncedDocs.length;
+      }
+
+      // Re-fetch latest authoritative remote list
+      const freshRemote = await api.fetchDocuments();
+      if (Array.isArray(freshRemote)) {
+        this.documents = freshRemote.map(r => ({
+          ...r,
+          createdBy: this.currentUser.username,
+          syncedToMongo: true
+        }));
+        this.saveLocalDocs(this.documents);
+      }
+
+      // 2. Sync Local Scanned Documents
+      const localScanned = this.loadLocalScannedDocs();
+      const offlineScanned = localScanned.filter(s => s.id && s.id.startsWith('scanned_'));
+
+      if (offlineScanned.length > 0) {
+        console.log(`Syncing ${offlineScanned.length} offline scanned documents to MongoDB...`);
+        try {
+          await api.batchImportScannedDocuments(offlineScanned);
+          syncedScannedCount = offlineScanned.length;
+        } catch (scannedErr) {
+          console.warn('Batch import scanned documents failed, attempting individual sync:', scannedErr);
+          for (const s of offlineScanned) {
+            try {
+              await api.createScannedDocument(s);
+              syncedScannedCount++;
+            } catch (singleErr) {
+              console.warn('Single scanned doc sync error:', singleErr);
+            }
+          }
+        }
+      }
+
+      // Re-fetch latest scanned documents
+      const freshScanned = await api.fetchScannedDocuments();
+      if (Array.isArray(freshScanned)) {
+        this.scannedDocuments = freshScanned;
+        this.saveLocalScannedDocs(freshScanned);
+      }
+
+      return {
+        success: true,
+        syncedDocsCount,
+        syncedScannedCount,
+        totalDocs: this.documents.length,
+        totalScanned: this.scannedDocuments.length,
+        isAlreadySynced: syncedDocsCount === 0 && syncedScannedCount === 0
+      };
+    } catch (err) {
+      console.error('Data synchronization error:', err);
+      return {
+        success: false,
+        reason: 'error',
+        message: err.message || 'Failed to complete synchronization with database.'
+      };
     }
   }
 

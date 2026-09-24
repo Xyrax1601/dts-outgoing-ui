@@ -59,6 +59,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mongoStatusPill = document.getElementById('mongo-status-pill');
   const mongoStatusText = document.getElementById('mongo-status-text');
 
+  // User Management & Sync Floating Menu Elements
+  const btnUserManagement = document.getElementById('btn-user-management');
+  const btnSyncData = document.getElementById('btn-sync-data');
+  const syncDataIcon = document.getElementById('sync-data-icon');
+  const syncDataText = document.getElementById('sync-data-text');
+
+  // User Management Modal Elements
+  const userMgmtModal = document.getElementById('user-mgmt-modal');
+  const userMgmtModalClose = document.getElementById('user-mgmt-modal-close');
+  const btnCancelMgmtVerify = document.getElementById('btn-cancel-mgmt-verify');
+  const btnCancelMgmtEdit = document.getElementById('btn-cancel-mgmt-edit');
+  const btnBackToVerify = document.getElementById('btn-back-to-verify');
+  const userMgmtStepVerify = document.getElementById('user-mgmt-step-verify');
+  const userMgmtStepEdit = document.getElementById('user-mgmt-step-edit');
+  const userMgmtVerifyForm = document.getElementById('user-mgmt-verify-form');
+  const verifyCurrentPasswordInput = document.getElementById('verify-current-password');
+  const btnToggleVerifyPass = document.getElementById('btn-toggle-verify-pass');
+  const userMgmtVerifyError = document.getElementById('user-mgmt-verify-error');
+  const userMgmtEditForm = document.getElementById('user-mgmt-edit-form');
+  const userMgmtEditError = document.getElementById('user-mgmt-edit-error');
+  const mgmtCurrentUsernameBadge = document.getElementById('mgmt-current-username-badge');
+  const mgmtNewUsernameInput = document.getElementById('mgmt-new-username');
+  const mgmtNewPasswordInput = document.getElementById('mgmt-new-password');
+  const btnToggleNewPass = document.getElementById('btn-toggle-new-pass');
+  const mgmtConfirmPasswordInput = document.getElementById('mgmt-confirm-password');
+  const btnSaveCredentials = document.getElementById('btn-save-credentials');
+  const saveCredentialsText = document.getElementById('save-credentials-text');
+  const btnSubmitVerifyPass = document.getElementById('btn-submit-verify-pass');
+
   // Storage Warning Banner Elements
   const storageWarningBanner = document.getElementById('storage-warning-banner');
   const storageBarFill = document.getElementById('storage-bar-fill');
@@ -224,6 +253,244 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearAuthInputs();
     showToast('Signed out successfully', 'info');
     showLoginScreen();
+  });
+
+  // ─── Sync Data Handler ──────────────────────────────────────────
+  let isSyncing = false;
+  btnSyncData?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (isSyncing) return;
+    isSyncing = true;
+
+    if (syncDataIcon) syncDataIcon.classList.add('spinning-icon');
+    if (syncDataText) syncDataText.textContent = 'Syncing...';
+
+    try {
+      const res = await store.syncAllDataToMongo();
+      if (!res.success) {
+        showToast(res.message, 'warning');
+      } else {
+        tracker.render();
+        scanner.render();
+        updateMongoStatusUI();
+        if (res.isAlreadySynced) {
+          showToast('All local data is already up to date with MongoDB!', 'info');
+        } else {
+          showToast(`Synced ${res.syncedDocsCount} document(s) & ${res.syncedScannedCount} scan(s) to MongoDB!`, 'success');
+        }
+      }
+    } catch (err) {
+      showToast(err.message || 'Sync failed', 'error');
+    } finally {
+      if (syncDataIcon) syncDataIcon.classList.remove('spinning-icon');
+      if (syncDataText) syncDataText.textContent = 'Sync Data';
+      isSyncing = false;
+    }
+  });
+
+  // ─── User Management Modal Handlers ─────────────────────────────
+  let verifiedCurrentPassword = '';
+
+  function openUserMgmtModal() {
+    if (!store.currentUser) {
+      showToast('Please sign in first', 'warning');
+      return;
+    }
+    verifiedCurrentPassword = '';
+    if (userMgmtStepVerify) userMgmtStepVerify.style.display = 'block';
+    if (userMgmtStepEdit) userMgmtStepEdit.style.display = 'none';
+    if (verifyCurrentPasswordInput) verifyCurrentPasswordInput.value = '';
+    if (userMgmtVerifyError) {
+      userMgmtVerifyError.style.display = 'none';
+      userMgmtVerifyError.textContent = '';
+    }
+    if (userMgmtEditError) {
+      userMgmtEditError.style.display = 'none';
+      userMgmtEditError.textContent = '';
+    }
+    userMgmtModal?.classList.add('modal-open');
+    setTimeout(() => verifyCurrentPasswordInput?.focus(), 100);
+  }
+
+  function closeUserMgmtModal() {
+    userMgmtModal?.classList.remove('modal-open');
+    verifiedCurrentPassword = '';
+    if (verifyCurrentPasswordInput) verifyCurrentPasswordInput.value = '';
+    if (mgmtNewPasswordInput) mgmtNewPasswordInput.value = '';
+    if (mgmtConfirmPasswordInput) mgmtConfirmPasswordInput.value = '';
+  }
+
+  btnUserManagement?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openUserMgmtModal();
+  });
+
+  userMgmtModalClose?.addEventListener('click', closeUserMgmtModal);
+  btnCancelMgmtVerify?.addEventListener('click', closeUserMgmtModal);
+  btnCancelMgmtEdit?.addEventListener('click', closeUserMgmtModal);
+
+  // Close when clicking modal backdrop outside container
+  userMgmtModal?.addEventListener('click', (e) => {
+    if (e.target === userMgmtModal) {
+      closeUserMgmtModal();
+    }
+  });
+
+  // Password visibility toggles
+  btnToggleVerifyPass?.addEventListener('click', () => {
+    const isPass = verifyCurrentPasswordInput.type === 'password';
+    verifyCurrentPasswordInput.type = isPass ? 'text' : 'password';
+    btnToggleVerifyPass.textContent = isPass ? 'Hide' : 'Show';
+  });
+
+  btnToggleNewPass?.addEventListener('click', () => {
+    const isPass = mgmtNewPasswordInput.type === 'password';
+    mgmtNewPasswordInput.type = isPass ? 'text' : 'password';
+    btnToggleNewPass.textContent = isPass ? 'Hide' : 'Show';
+  });
+
+  // Step 1: Password Verification Form Submit
+  userMgmtVerifyForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = verifyCurrentPasswordInput.value;
+    if (!password) return;
+
+    if (btnSubmitVerifyPass) {
+      btnSubmitVerifyPass.disabled = true;
+      btnSubmitVerifyPass.innerHTML = '<span>Verifying...</span>';
+    }
+    if (userMgmtVerifyError) userMgmtVerifyError.style.display = 'none';
+
+    try {
+      await store.verifyCurrentPassword(password);
+      verifiedCurrentPassword = password;
+
+      // Switch to Step 2
+      if (userMgmtStepVerify) userMgmtStepVerify.style.display = 'none';
+      if (userMgmtStepEdit) userMgmtStepEdit.style.display = 'block';
+
+      if (mgmtCurrentUsernameBadge) {
+        mgmtCurrentUsernameBadge.textContent = store.currentUser?.username || '';
+      }
+      if (mgmtNewUsernameInput) {
+        mgmtNewUsernameInput.value = store.currentUser?.username || '';
+      }
+      if (mgmtNewPasswordInput) mgmtNewPasswordInput.value = '';
+      if (mgmtConfirmPasswordInput) mgmtConfirmPasswordInput.value = '';
+      if (userMgmtEditError) userMgmtEditError.style.display = 'none';
+    } catch (err) {
+      if (userMgmtVerifyError) {
+        userMgmtVerifyError.textContent = err.message || 'Incorrect password. Access denied.';
+        userMgmtVerifyError.style.display = 'block';
+      }
+    } finally {
+      if (btnSubmitVerifyPass) {
+        btnSubmitVerifyPass.disabled = false;
+        btnSubmitVerifyPass.innerHTML = '<span>Verify Password &amp; Continue &rarr;</span>';
+      }
+    }
+  });
+
+  // Back from Step 2 to Step 1
+  btnBackToVerify?.addEventListener('click', () => {
+    verifiedCurrentPassword = '';
+    if (userMgmtStepEdit) userMgmtStepEdit.style.display = 'none';
+    if (userMgmtStepVerify) userMgmtStepVerify.style.display = 'block';
+    if (verifyCurrentPasswordInput) {
+      verifyCurrentPasswordInput.value = '';
+      verifyCurrentPasswordInput.focus();
+    }
+  });
+
+  // Step 2: Edit Credentials Form Submit
+  userMgmtEditForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!verifiedCurrentPassword) {
+      if (userMgmtEditError) {
+        userMgmtEditError.textContent = 'Session unverified. Please re-enter your password.';
+        userMgmtEditError.style.display = 'block';
+      }
+      return;
+    }
+
+    const newUsername = mgmtNewUsernameInput.value.trim();
+    const newPassword = mgmtNewPasswordInput.value;
+    const confirmPassword = mgmtConfirmPasswordInput.value;
+    const currentUsername = (store.currentUser?.username || '').toLowerCase().trim();
+
+    if (newUsername.length < 3) {
+      if (userMgmtEditError) {
+        userMgmtEditError.textContent = 'Username must be at least 3 characters long.';
+        userMgmtEditError.style.display = 'block';
+      }
+      return;
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        if (userMgmtEditError) {
+          userMgmtEditError.textContent = 'New password must be at least 6 characters long.';
+          userMgmtEditError.style.display = 'block';
+        }
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        if (userMgmtEditError) {
+          userMgmtEditError.textContent = 'New password and confirmation do not match.';
+          userMgmtEditError.style.display = 'block';
+        }
+        return;
+      }
+    }
+
+    const isUsernameChanged = newUsername.toLowerCase() !== currentUsername;
+    const isPasswordChanged = Boolean(newPassword);
+
+    if (!isUsernameChanged && !isPasswordChanged) {
+      if (userMgmtEditError) {
+        userMgmtEditError.textContent = 'No changes were made. Enter a new username or new password.';
+        userMgmtEditError.style.display = 'block';
+      }
+      return;
+    }
+
+    if (btnSaveCredentials) {
+      btnSaveCredentials.disabled = true;
+      if (saveCredentialsText) saveCredentialsText.textContent = 'Saving Changes...';
+    }
+    if (userMgmtEditError) userMgmtEditError.style.display = 'none';
+
+    try {
+      const updatePayload = {
+        currentPassword: verifiedCurrentPassword,
+        newUsername: isUsernameChanged ? newUsername : undefined,
+        newPassword: isPasswordChanged ? newPassword : undefined
+      };
+
+      const result = await store.updateCredentials(updatePayload);
+
+      // Update sidebar user display
+      if (userDisplayName) userDisplayName.textContent = store.currentUser.username;
+      if (userAvatar) userAvatar.textContent = (store.currentUser.username.charAt(0) || 'U').toUpperCase();
+
+      // Refresh view datasets
+      tracker.render();
+      scanner.render();
+      renderUserOfficeDatalist();
+
+      showToast(result.message || 'Credentials updated successfully!', 'success');
+      closeUserMgmtModal();
+    } catch (err) {
+      if (userMgmtEditError) {
+        userMgmtEditError.textContent = err.message || 'Failed to update credentials';
+        userMgmtEditError.style.display = 'block';
+      }
+    } finally {
+      if (btnSaveCredentials) {
+        btnSaveCredentials.disabled = false;
+        if (saveCredentialsText) saveCredentialsText.textContent = 'Save Changes';
+      }
+    }
   });
 
   function showLoginScreen() {

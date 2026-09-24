@@ -2411,3 +2411,218 @@ body {
   from { transform: scale(1); box-shadow: 0 0 12px rgba(245, 158, 11, 0.2); }
   to { transform: scale(1.06); box-shadow: 0 0 24px rgba(245, 158, 11, 0.45); }
 }
+
+/* ─── User Profile Actions Cluster & Floating Hover Menu ─────────── */
+.user-actions-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.user-hover-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: -6px;
+  width: 200px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.45), 0 6px 12px -4px rgba(0, 0, 0, 0.3);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s ease;
+  z-index: 99;
+}
+
+/* Invisible hover bridge to prevent premature closure when moving mouse */
+.user-hover-menu::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 0;
+  right: 0;
+  height: 14px;
+}
+
+.user-actions-cluster:hover .user-hover-menu,
+.user-actions-cluster:focus-within .user-hover-menu,
+.user-hover-menu:hover {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.user-hover-menu-header {
+  padding: 6px 8px 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.user-hover-menu-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.user-hover-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition);
+}
+
+.user-hover-menu-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.user-hover-menu-btn:active {
+  transform: scale(0.98);
+}
+
+.user-hover-menu-btn svg {
+  flex-shrink: 0;
+  color: var(--accent-blue);
+  transition: transform 0.2s ease;
+}
+
+.user-hover-menu-btn:hover svg {
+  color: #60a5fa;
+  transform: scale(1.08);
+}
+
+/* Sync Button Animation */
+.spinning-icon {
+  animation: spinSync 0.9s linear infinite;
+}
+
+@keyframes spinSync {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── User Management Modal Styles ───────────────────────────────── */
+.user-mgmt-modal-container {
+  max-width: 520px;
+}
+
+.user-mgmt-prompt-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.user-mgmt-shield-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-mgmt-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.user-mgmt-desc {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.user-mgmt-badge-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.user-mgmt-current-pill {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.user-mgmt-current-pill strong {
+  color: var(--accent-blue);
+  font-size: 0.9rem;
+}
+
+.user-mgmt-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.user-mgmt-section-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.user-mgmt-section-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.user-mgmt-section-title svg {
+  color: var(--accent-blue);
+}
+
+.form-helper-text {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: block;
+}

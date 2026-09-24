@@ -154,4 +154,56 @@ router.post('/batch-delete', async (req, res) => {
   }
 });
 
+// ─── POST Batch Import Scanned Documents ────────────────────────────────
+router.post('/batch-import', async (req, res) => {
+  try {
+    const { documents } = req.body;
+    const currentUsername = req.user.username;
+
+    if (!Array.isArray(documents) || documents.length === 0) {
+      return res.status(400).json({ error: 'Array of scanned documents is required' });
+    }
+
+    if (isMongoConnected()) {
+      const UserScannedModel = getUserScannedDocumentModel(currentUsername);
+      const docsToInsert = documents.map(d => ({
+        title: (d.title || 'Untitled Scanned Doc').trim(),
+        trackingNo: (d.trackingNo || 'NONE').trim(),
+        linkedDocId: (d.linkedDocId || '').trim(),
+        date: d.date || new Date().toISOString().split('T')[0],
+        pages: Array.isArray(d.pages) ? d.pages : [],
+        fileSize: d.fileSize || 0,
+        notes: (d.notes || '').trim(),
+        createdBy: currentUsername,
+        createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
+      }));
+
+      const inserted = await UserScannedModel.insertMany(docsToInsert);
+      return res.status(201).json({
+        message: `Successfully imported ${inserted.length} scanned documents to MongoDB`,
+        count: inserted.length
+      });
+    }
+
+    // Memory fallback
+    const imported = documents.map(d => ({
+      id: `scanned_${Date.now()}_${memoryIdCounter++}`,
+      title: d.title || 'Untitled Scanned Doc',
+      trackingNo: d.trackingNo || 'NONE',
+      linkedDocId: d.linkedDocId || '',
+      date: d.date || new Date().toISOString().split('T')[0],
+      pages: d.pages || [],
+      fileSize: d.fileSize || 0,
+      notes: d.notes || '',
+      createdBy: currentUsername,
+      createdAt: new Date().toISOString()
+    }));
+    memoryScannedStore.unshift(...imported);
+    res.status(201).json({ message: `Successfully imported ${imported.length} scanned documents`, count: imported.length });
+  } catch (err) {
+    console.error('Batch import scanned docs error:', err.message);
+    res.status(500).json({ error: 'Failed to batch import scanned documents' });
+  }
+});
+
 export default router;

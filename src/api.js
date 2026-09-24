@@ -29,7 +29,7 @@ class DTSApiClient {
 
   async checkHealth() {
     try {
-      const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(`${API_BASE_URL}/health`, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) return { online: false, mongoConnected: false };
       const data = await res.json();
       return { online: true, mongoConnected: data.mongoConnected };
@@ -104,6 +104,31 @@ class DTSApiClient {
       console.warn('Update offices API error:', e);
       return { offices };
     }
+  }
+
+  async verifyPassword(password) {
+    const res = await fetch(`${API_BASE_URL}/auth/verify-password`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Password verification failed');
+    return data;
+  }
+
+  async updateCredentials({ currentPassword, newUsername, newPassword }) {
+    const res = await fetch(`${API_BASE_URL}/auth/credentials`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ currentPassword, newUsername, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update credentials');
+    if (data.token) {
+      this.setToken(data.token);
+    }
+    return data;
   }
 
   // Document Endpoints
@@ -206,6 +231,16 @@ class DTSApiClient {
       body: JSON.stringify({ ids })
     });
     if (!res.ok) throw new Error('Failed to batch delete scanned documents');
+    return await res.json();
+  }
+
+  async batchImportScannedDocuments(documents) {
+    const res = await fetch(`${API_BASE_URL}/scanned-documents/batch-import`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ documents })
+    });
+    if (!res.ok) throw new Error('Failed to batch import scanned documents');
     return await res.json();
   }
 }
