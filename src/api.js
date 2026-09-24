@@ -6,22 +6,25 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 class DTSApiClient {
   constructor() {
-    this.token = sessionStorage.getItem('dts_jwt_token') || null;
+    const saved = sessionStorage.getItem('dts_jwt_token') || localStorage.getItem('dts_jwt_token');
+    this.token = (saved && saved !== 'undefined' && saved !== 'null') ? saved : null;
   }
 
   setToken(token) {
-    this.token = token;
-    if (token) {
+    if (token && token !== 'undefined' && token !== 'null') {
+      this.token = token;
       sessionStorage.setItem('dts_jwt_token', token);
+      localStorage.setItem('dts_jwt_token', token);
     } else {
+      this.token = null;
       sessionStorage.removeItem('dts_jwt_token');
-      localStorage.removeItem('dts_jwt_token'); // Clean legacy
+      localStorage.removeItem('dts_jwt_token');
     }
   }
 
   getHeaders() {
     const headers = { 'Content-Type': 'application/json' };
-    if (this.token) {
+    if (this.token && this.token !== 'undefined' && this.token !== 'null') {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
     return headers;
@@ -106,22 +109,25 @@ class DTSApiClient {
     }
   }
 
-  async verifyPassword(password) {
+  async verifyPassword(password, username = '') {
     const res = await fetch(`${API_BASE_URL}/auth/verify-password`, {
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify({ password })
+      body: JSON.stringify({ password, username })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Password verification failed');
+    if (data.token) {
+      this.setToken(data.token);
+    }
     return data;
   }
 
-  async updateCredentials({ currentPassword, newUsername, newPassword }) {
+  async updateCredentials({ currentPassword, newUsername, newPassword, username = '' }) {
     const res = await fetch(`${API_BASE_URL}/auth/credentials`, {
       method: 'PUT',
       headers: this.getHeaders(),
-      body: JSON.stringify({ currentPassword, newUsername, newPassword })
+      body: JSON.stringify({ currentPassword, newUsername, newPassword, username })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to update credentials');

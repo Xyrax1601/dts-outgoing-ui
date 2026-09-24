@@ -2444,12 +2444,13 @@ body {
 .user-hover-menu::after {
   content: '';
   position: absolute;
-  bottom: -12px;
-  left: 0;
-  right: 0;
-  height: 14px;
+  bottom: -20px;
+  left: -20px;
+  right: -20px;
+  height: 25px;
 }
 
+.user-profile-card:hover .user-hover-menu,
 .user-actions-cluster:hover .user-hover-menu,
 .user-actions-cluster:focus-within .user-hover-menu,
 .user-hover-menu:hover {

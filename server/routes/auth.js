@@ -161,33 +161,56 @@ router.put('/offices', async (req, res) => {
   }
 });
 
+// Helper to safely extract and verify JWT
+function getAuthUser(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    if (token && token !== 'undefined' && token !== 'null') {
+      try {
+        return jwt.verify(token, JWT_SECRET);
+      } catch (e) {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
 // Verify Current Password
 router.post('/verify-password', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { password } = req.body;
+    const decoded = getAuthUser(req);
+    const { password, username } = req.body;
+    const targetUsername = ((decoded && decoded.username) || username || '').toLowerCase().trim();
 
     if (!password) {
       return res.status(400).json({ error: 'Current password is required' });
     }
 
-    if (!isMongoConnected()) {
-      // Local fallback mode: verify admin demo password or accept
-      if (decoded.username === 'admin' && password !== 'admin123') {
-        return res.status(401).json({ error: 'Incorrect current password' });
-      }
-      return res.json({ valid: true, message: 'Password verified' });
+    if (!targetUsername && !decoded) {
+      return res.status(401).json({ error: 'No active session. Please sign in again.' });
     }
 
-    const user = await User.findById(decoded.id);
+    if (!isMongoConnected()) {
+      // Local fallback mode: verify admin demo password or accept
+      if (targetUsername === 'admin' && password !== 'admin123') {
+        return res.status(401).json({ error: 'Incorrect current password' });
+      }
+      const token = jwt.sign({ id: 'local-id', username: targetUsername }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ valid: true, message: 'Password verified', token });
+    }
+
+    let user = null;
+    if (decoded && decoded.id && decoded.id !== 'local-id' && mongoose.Types.ObjectId.isValid(decoded.id)) {
+      user = await User.findById(decoded.id);
+    }
+    if (!user && targetUsername) {
+      user = await User.findOne({ username: targetUsername });
+    }
+
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'User account not found' });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
@@ -195,24 +218,20 @@ router.post('/verify-password', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect current password' });
     }
 
-    res.json({ valid: true, message: 'Password verified' });
+    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ valid: true, message: 'Password verified', token });
   } catch (err) {
     console.error('Verify password error:', err);
-    res.status(401).json({ error: 'Invalid session or password verification failed' });
+    res.status(500).json({ error: 'Failed to verify password' });
   }
 });
 
 // Update User Credentials (Username and/or Password)
 router.put('/credentials', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const { currentPassword, newUsername, newPassword } = req.body;
+    const decoded = getAuthUser(req);
+    const { currentPassword, newUsername, newPassword, username } = req.body;
+    const oldUsername = ((decoded && decoded.username) || username || '').toLowerCase().trim();
 
     if (!currentPassword) {
       return res.status(400).json({ error: 'Current password is required to update credentials' });
@@ -222,7 +241,10 @@ router.put('/credentials', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a new username or new password to update' });
     }
 
-    const oldUsername = (decoded.username || '').toLowerCase().trim();
+    if (!oldUsername && !decoded) {
+      return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+    }
+
     const cleanNewUsername = newUsername ? newUsername.toLowerCase().trim() : null;
 
     if (cleanNewUsername && cleanNewUsername.length < 3) {
@@ -239,16 +261,23 @@ router.put('/credentials', async (req, res) => {
         return res.status(401).json({ error: 'Incorrect current password' });
       }
       const finalUsername = cleanNewUsername || oldUsername;
-      const newToken = jwt.sign({ id: decoded.id, username: finalUsername }, JWT_SECRET, { expiresIn: '7d' });
+      const newToken = jwt.sign({ id: (decoded && decoded.id) || 'local-id', username: finalUsername }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({
         message: 'Credentials updated successfully (Local mode)',
         token: newToken,
-        user: { id: decoded.id, username: finalUsername, role: 'admin', offices: [] }
+        user: { id: (decoded && decoded.id) || 'local-id', username: finalUsername, role: 'admin', offices: [] }
       });
     }
 
     // Check user in MongoDB
-    const user = await User.findById(decoded.id);
+    let user = null;
+    if (decoded && decoded.id && decoded.id !== 'local-id' && mongoose.Types.ObjectId.isValid(decoded.id)) {
+      user = await User.findById(decoded.id);
+    }
+    if (!user && oldUsername) {
+      user = await User.findOne({ username: oldUsername });
+    }
+
     if (!user) {
       return res.status(404).json({ error: 'User account not found' });
     }

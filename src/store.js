@@ -538,13 +538,22 @@ class DTSStore {
 
   async verifyCurrentPassword(password) {
     if (!this.currentUser) throw new Error('Not logged in');
-    return await api.verifyPassword(password);
+    const res = await api.verifyPassword(password, this.currentUser.username);
+    if (res.token) {
+      api.setToken(res.token);
+    }
+    return res;
   }
 
   async updateCredentials({ currentPassword, newUsername, newPassword }) {
     if (!this.currentUser) throw new Error('Not logged in');
     const oldUsername = (this.currentUser.username || '').toLowerCase().trim();
-    const result = await api.updateCredentials({ currentPassword, newUsername, newPassword });
+    const result = await api.updateCredentials({
+      currentPassword,
+      newUsername,
+      newPassword,
+      username: oldUsername
+    });
 
     const updatedUser = result.user || {
       ...this.currentUser,
